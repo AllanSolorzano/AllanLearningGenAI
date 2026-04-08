@@ -1,1 +1,118 @@
-# LearningGenAI
+# Learning GenAI & Agentic AI
+
+> A hands-on learning repository for **Cloud and DevOps engineers** stepping into Generative AI and Agentic AI.
+> Every concept is grounded in infrastructure analogies you already know.
+
+---
+
+## Who Is This For?
+
+You deploy containers. You write Terraform. You've been paged at 3am.
+Now AI is showing up everywhere in your stack — in CI/CD pipelines, incident response tooling, and the platforms your company is building.
+
+This repo takes you from "I've used ChatGPT" to "I understand how this works and I can build with it."
+
+**Assumed background:**
+- Comfortable with Python (scripts, not data science)
+- Hands-on experience with Kubernetes, Terraform, Docker, or similar cloud/DevOps tools
+- Some AWS/GCP/Azure exposure helpful but not required
+
+**Not required:**
+- Math background
+- Machine learning experience
+- Data science background
+
+---
+
+## Curriculum Map
+
+| # | Session | Key Tools | API Key? | Status |
+|---|---------|-----------|----------|--------|
+| 01 | [How LLMs Actually Work](./sessions/01_how_llms_work/) | `tiktoken`, `sentence-transformers` | No | ✅ Available |
+| 02 | [Prompt Engineering](./sessions/02_prompt_engineering/) | `anthropic` | Yes | ✅ Available |
+| 03 | [RAG & Vector Databases](./sessions/03_rag_and_vectordbs/) | `chromadb`, `sentence-transformers`, `ollama` | Optional | ✅ Available |
+
+---
+
+## How Each Session Is Structured
+
+```
+sessions/XX_topic_name/
+├── README.md          ← Start here: objectives, prereqs, estimated time
+├── concepts/          ← The "why" and "how" — read before coding
+│   ├── 01_topic.md
+│   └── ...
+├── labs/              ← Hands-on coding exercises
+│   ├── lab01_name/
+│   │   ├── lab.py     ← You write the code (has TODO markers)
+│   │   └── solution.py ← Reference implementation (peek only when stuck)
+│   └── ...
+└── demos/             ← Ready-to-run scripts — observe and learn
+    └── ...
+```
+
+**How to use labs:**
+1. Open `lab.py` and read it top to bottom — understand the goal
+2. Fill in the `# TODO` sections — use the concept docs if stuck
+3. Run with `python lab.py` and verify your output matches the expected output in comments
+4. If truly stuck after trying: check `solution.py`
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone <repo-url>
+cd LearningGenAI
+
+# 2. Create a virtual environment
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+
+# 3. Install dependencies
+pip install -r requirements.txt
+
+# 4. Verify your setup
+python setup_check.py
+
+# 5. Start Session 01
+cd sessions/01_how_llms_work
+cat README.md
+```
+
+> **Session 01 requires no API key.** You learn tokenization and embeddings completely offline.
+
+---
+
+## API Key Setup
+
+For sessions 02+, you need an Anthropic API key:
+
+```bash
+cp .env.example .env
+# Open .env and paste your ANTHROPIC_API_KEY
+```
+
+Get a key at [console.anthropic.com](https://console.anthropic.com). The free tier is sufficient for all lab exercises.
+
+---
+
+## Repository Philosophy
+
+- **No notebooks.** DevOps engineers live in terminals and editors. Every exercise is a plain `.py` script.
+- **Offline-first.** Session 01 runs entirely without an internet connection after the initial `pip install`.
+- **DevOps analogies first.** Every concept is introduced with an infrastructure analogy before the AI theory.
+- **Build things that matter.** Labs produce code patterns (semantic search, context management, agent loops) you will actually use in production.
+
+---
+
+## Contributing
+
+Found a bug, a better analogy, or want to contribute a session? Open an issue or PR — contributions welcome.
+
+---
+
+## License
+
+MIT — use freely for learning and teaching.

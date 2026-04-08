@@ -1,0 +1,34 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Models (sentence-transformers downloads models here)
+# Uncomment if you don't want to cache models in the repo
+# ~/.cache/huggingface/
+
+# Jupyter (if anyone uses notebooks)
+.ipynb_checkpoints/
+*.ipynb

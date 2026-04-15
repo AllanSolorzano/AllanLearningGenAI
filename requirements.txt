@@ -8,6 +8,7 @@ numpy>=1.26.0                  # Vector math
 
 # Session 02+ — Anthropic API key required (or use Ollama locally)
 anthropic>=0.40.0              # Claude API client
+openai>=1.40.0                 # Session 04: OpenAI + OpenAI-compatible clients (incl. Ollama /v1)
 
 # Session 03 — RAG & Vector Databases
 chromadb>=0.5.0                # Local vector database (no server needed)

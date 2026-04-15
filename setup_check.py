@@ -127,6 +127,7 @@ def main() -> None:
         ("sentence_transformers", "sentence-transformers"),
         ("numpy", None),
         ("anthropic", None),
+        ("openai", None),
         ("dotenv", "python-dotenv"),
     ]
     for import_name, package_name in packages:

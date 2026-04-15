@@ -30,7 +30,8 @@ This repo takes you from "I've used ChatGPT" to "I understand how this works and
 |---|---------|-----------|----------|--------|
 | 01 | [How LLMs Actually Work](./sessions/01_how_llms_work/) | `tiktoken`, `sentence-transformers` | No | ✅ Available |
 | 02 | [Prompt Engineering](./sessions/02_prompt_engineering/) | `anthropic` | Yes | ✅ Available |
-| 03 | [RAG & Vector Databases](./sessions/03_rag_and_vectordbs/) | `chromadb`, `sentence-transformers`, `ollama` | Optional | ✅ Available |
+| 03 | [Local LLMs with Ollama](./sessions/03_local_llms_ollama/) | `ollama`, `requests` | No (local) | ✅ Available |
+| 04 | [Tool Calling (Function Calling)](./sessions/04_tool_calling_function_calling/) | `openai`, `ollama` | Depends on provider | ✅ Available |
 
 ---
 
@@ -87,14 +88,18 @@ cat README.md
 
 ## API Key Setup
 
-For sessions 02+, you need an Anthropic API key:
+For cloud-provider labs, copy and configure `.env`:
 
 ```bash
 cp .env.example .env
-# Open .env and paste your ANTHROPIC_API_KEY
+# Open .env and fill only the keys you need:
+# - ANTHROPIC_API_KEY (Session 02)
+# - OPENAI_API_KEY / provider-compatible keys (Session 04)
 ```
 
-Get a key at [console.anthropic.com](https://console.anthropic.com). The free tier is sufficient for all lab exercises.
+Optional local path:
+- Session 03 runs fully local with Ollama.
+- Session 04 can also run locally through Ollama's OpenAI-compatible `/v1` endpoint.
 
 ---
 

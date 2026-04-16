@@ -44,6 +44,21 @@ pip install -r ../../requirements.txt
 python ../../setup_check.py
 ```
 
+**Session 05 / FastMCP:** `fastmcp` requires **Python 3.10+**. On macOS, if `python3 --version` shows 3.9.x, use Homebrew’s interpreter when creating a venv, for example: `/opt/homebrew/bin/python3.11 -m venv .venv`.
+
+### One-time: shared venv under `lab01_first_mcp_server` (optional)
+
+Lab 02 in the course often uses a virtualenv next to lab01 so `fastmcp` is on `PATH` without activating the venv each time:
+
+```bash
+cd sessions/05_mcp_servers/labs/lab01_first_mcp_server
+# Use 3.10+ (adjust path if needed):
+/opt/homebrew/bin/python3.11 -m venv .venv
+./.venv/bin/pip install -r ../../../../requirements.txt
+# Or minimal MCP-only install:
+# ./.venv/bin/pip install fastmcp mcp
+```
+
 ## Session Structure
 
 ```
@@ -69,7 +84,7 @@ python ../../setup_check.py
 
 | Lab | Topic | Key Concepts |
 |-----|-------|--------------|
-| lab01 | First MCP server | `FastMCP`, `@mcp.tool()`, `fastmcp dev` inspector |
+| lab01 | First MCP server | `FastMCP`, `@mcp.tool()`, `fastmcp dev inspector` |
 | lab02 | Resources and Tools | `@mcp.resource()`, URI templates, read vs write |
 | lab03 | Claude as MCP client | `ClientSession`, `stdio_client`, dynamic tool discovery |
 | lab04 | Full DevOps server | All primitives combined, `--demo` mode with Claude |
@@ -92,11 +107,15 @@ cat concepts/01_mcp_vs_function_calling.md
 
 # 2. Build your first server
 vim labs/lab01_first_mcp_server/lab.py
-fastmcp dev labs/lab01_first_mcp_server/lab.py
+fastmcp dev inspector labs/lab01_first_mcp_server/lab.py
 
-# 3. Add resources
-vim labs/lab02_resources_and_tools/lab.py
-fastmcp dev labs/lab02_resources_and_tools/lab.py
+# 3. Add resources (same as LearningGenAI-2: from lab02, use lab01’s venv on PATH)
+cd labs/lab02_resources_and_tools
+export PATH="../lab01_first_mcp_server/.venv/bin:$PATH"
+fastmcp dev inspector lab.py
+
+# 3b. Or from repo root / 05_mcp_servers without cd+PATH:
+# fastmcp dev inspector labs/lab02_resources_and_tools/lab.py
 
 # 4. Connect Claude to an MCP server
 python labs/lab03_claude_mcp_client/lab.py
@@ -105,8 +124,8 @@ python labs/lab03_claude_mcp_client/lab.py
 python labs/lab04_devops_mcp_server/lab.py --demo
 
 # Run demos
-fastmcp dev demos/demo_simple_mcp_server.py
-fastmcp dev demos/demo_incident_mcp_server.py
+fastmcp dev inspector demos/demo_simple_mcp_server.py
+fastmcp dev inspector demos/demo_incident_mcp_server.py
 python demos/demo_claude_with_mcp.py
 ```
 
@@ -133,10 +152,10 @@ Restart Claude Desktop → your tools appear automatically in every conversation
 ## Development Tip: MCP Inspector
 
 ```bash
-fastmcp dev your_server.py
+fastmcp dev inspector your_server.py
 ```
 
-Opens a browser UI at `http://localhost:5173` where you can:
+Opens the **MCP Inspector** (FastMCP proxies it; default UI port **6274**, proxy **6277** — the terminal prints the exact URL and optional auth token). In the browser you can:
 - See all tools, resources, and prompts your server exposes
 - Call tools manually and inspect the response
 - Test schemas before connecting Claude

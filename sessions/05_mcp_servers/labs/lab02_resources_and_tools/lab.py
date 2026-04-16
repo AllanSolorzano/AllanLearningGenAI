@@ -13,7 +13,10 @@ you had to inject all context into the prompt yourself. With MCP Resources,
 the model can request exactly what it needs, when it needs it.
 
 Run:
-    fastmcp dev lab.py      # browser inspector at localhost:5173
+    # MCP Inspector (FastMCP 2.x): from this directory, reuse lab01’s venv:
+    #   export PATH="../lab01_first_mcp_server/.venv/bin:$PATH"
+    #   fastmcp dev inspector lab.py
+    # Or: fastmcp dev inspector lab.py  (if fastmcp is already on your PATH)
     python lab.py           # stdio mode
 
 When stuck: check solution.py
@@ -166,5 +169,5 @@ def get_incident_details(incident_id: str) -> dict:
 
 if __name__ == "__main__":
     print("Starting MCP server (stdio mode)...")
-    print("Tip: run 'fastmcp dev lab.py' to open the browser inspector.")
+    print("Tip: run 'fastmcp dev inspector lab.py' to open the MCP Inspector.")
     mcp.run()

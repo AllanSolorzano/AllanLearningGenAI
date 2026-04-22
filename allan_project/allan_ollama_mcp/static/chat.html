@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>allan_project</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --user: #2563eb;
+      --assistant: #1e293b;
+      --accent: #38bdf8;
+      --error: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 0.75rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    header .sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+    header a {
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.85rem;
+    }
+    header a:hover { text-decoration: underline; }
+    .toolbar {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar input[type="text"] {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 0.85rem;
+      width: 11rem;
+    }
+    #sessionPick {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.8rem;
+      max-width: 14rem;
+    }
+    .toolbar button {
+      background: var(--border);
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      padding: 0.4rem 0.75rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .toolbar button:hover { filter: brightness(1.1); }
+    .toolbar button.primary {
+      background: var(--user);
+      font-weight: 500;
+    }
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .bubble {
+      max-width: 90%;
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--user);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble.assistant {
+      align-self: flex-start;
+      background: var(--assistant);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .bubble.error {
+      align-self: center;
+      background: rgba(248, 113, 113, 0.12);
+      color: var(--error);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      font-size: 0.9rem;
+    }
+    .bubble.meta {
+      align-self: center;
+      color: var(--muted);
+      font-size: 0.8rem;
+      background: transparent;
+      border: none;
+    }
+    footer {
+      padding: 0.75rem 1.25rem 1rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+    }
+    footer textarea {
+      width: 100%;
+      min-height: 3.25rem;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.6rem 0.75rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    footer textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .send-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      justify-content: flex-end;
+    }
+    .send-row button {
+      background: var(--user);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .send-row button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    details.panel {
+      max-width: 52rem;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0.5rem 1.25rem 0;
+      color: var(--text);
+    }
+    details.panel > summary {
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--accent);
+      list-style: none;
+    }
+    details.panel > summary::-webkit-details-marker { display: none; }
+    .panel-body {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .panel-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    #mcpConfigJson {
+      width: 100%;
+      min-height: 10rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.78rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.5rem;
+    }
+    #mcpToolsSummary {
+      font-size: 0.78rem;
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>allan_project</h1>
+      <div class="sub">SQLite-backed history — refresh or pick a session to resume. MCP tools optional.</div>
+    </div>
+    <div class="toolbar">
+      <label style="font-size:0.8rem;color:var(--muted)" for="sessionPick">History</label>
+      <select id="sessionPick" aria-label="Chat session">
+        <option value="">— loading —</option>
+      </select>
+      <label style="font-size:0.8rem;color:var(--muted)">Model</label>
+      <input type="text" id="model" placeholder="tools model, e.g. qwen3" autocomplete="off" />
+      <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.25rem">
+        <input type="checkbox" id="useMcp" /> MCP tools
+      </label>
+      <button type="button" id="btnPullHistory" title="Reload messages from SQLite">Reload history</button>
+      <button type="button" id="newChat">New chat</button>
+      <a href="/docs">API docs</a>
+      <a href="/mcp/remote-tools">MCP tools JSON</a>
+    </div>
+  </header>
+  <details class="panel" id="settingsPanel">
+    <summary>Settings — MCP servers &amp; history</summary>
+    <div class="panel-body">
+      <div class="hint">MCP config is saved to the file shown after “Load”. Use a tools-capable Ollama model and enable “MCP tools” above when chatting.</div>
+      <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
+      <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+      <div class="panel-row">
+        <button type="button" id="btnLoadMcp">Load config</button>
+        <button type="button" id="btnSaveMcp">Save &amp; apply</button>
+        <button type="button" id="btnRefreshMcpTools">Refresh tool list</button>
+      </div>
+      <div id="mcpToolsSummary"></div>
+    </div>
+  </details>
+  <div id="log" aria-live="polite"></div>
+  <footer>
+    <textarea id="input" placeholder="Write a message… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+    <div class="send-row">
+      <button type="button" id="send">Send</button>
+    </div>
+  </footer>
+  <script>
+    const LS_KEY = "allan_project_session_id";
+    const logEl = document.getElementById("log");
+    const inputEl = document.getElementById("input");
+    const modelEl = document.getElementById("model");
+    const sendBtn = document.getElementById("send");
+    const newChatBtn = document.getElementById("newChat");
+    const useMcpEl = document.getElementById("useMcp");
+    const sessionPick = document.getElementById("sessionPick");
+    const btnPullHistory = document.getElementById("btnPullHistory");
+    const mcpConfigJson = document.getElementById("mcpConfigJson");
+    const btnLoadMcp = document.getElementById("btnLoadMcp");
+    const btnSaveMcp = document.getElementById("btnSaveMcp");
+    const btnRefreshMcpTools = document.getElementById("btnRefreshMcpTools");
+    const mcpToolsSummary = document.getElementById("mcpToolsSummary");
+
+    let sessionId = null;
+    let busy = false;
+
+    function persistSessionId() {
+      if (sessionId) localStorage.setItem(LS_KEY, sessionId);
+      else localStorage.removeItem(LS_KEY);
+    }
+
+    function appendBubble(role, text) {
+      const div = document.createElement("div");
+      div.className = "bubble " + role;
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function appendMeta(text) {
+      const div = document.createElement("div");
+      div.className = "bubble meta";
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function formatDetail(detail) {
+      if (detail == null) return "Request failed";
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        return detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+      }
+      return JSON.stringify(detail);
+    }
+
+    async function createSession() {
+      const r = await fetch("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "allan_project" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(formatDetail(data.detail) || r.statusText);
+      if (!data.id || typeof data.id !== "string") {
+        throw new Error("Invalid session response from server (missing id).");
+      }
+      sessionId = data.id;
+      persistSessionId();
+      appendMeta("New session — messages are stored in SQLite for this chat.");
+      await refreshSessionList();
+    }
+
+    async function ensureSession() {
+      if (!sessionId) await createSession();
+    }
+
+    function renderHistory(messages) {
+      logEl.innerHTML = "";
+      for (const m of messages) {
+        const role = m.role;
+        if (role === "user") appendBubble("user", m.content || "");
+        else if (role === "assistant") {
+          let t = m.content || "";
+          if (m.has_tool_calls) t = "(MCP tool step) " + t;
+          appendBubble("assistant", t);
+        } else if (role === "system") appendMeta("[system] " + (m.content || ""));
+        else if (role === "tool") {
+          const name = m.tool_name || "?";
+          const c = m.content || "";
+          appendMeta("Tool " + name + (c.length > 1800 ? " → " + c.slice(0, 1800) + "…" : " → " + c));
+        } else appendMeta("[" + role + "] " + (m.content || ""));
+      }
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function loadHistoryForSession(id) {
+      const r = await fetch("/sessions/" + encodeURIComponent(id) + "/messages?limit=200");
+      const data = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        const err = new Error("Session not found");
+        err.name = "SessionNotFound";
+        throw err;
+      }
+      if (!r.ok) throw new Error(formatDetail(data.detail) || r.statusText);
+      const messages = Array.isArray(data) ? data : [];
+      sessionId = id;
+      persistSessionId();
+      renderHistory(messages);
+      appendMeta("Session " + id.slice(0, 8) + "… — " + messages.length + " row(s) from SQLite.");
+      sessionPick.value = id;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function tryRestoreSession() {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      try {
+        await loadHistoryForSession(raw);
+        return true;
+      } catch (e) {
+        // Only drop localStorage when the server says this id is gone — not on 5xx/network.
+        if (e && e.name === "SessionNotFound") localStorage.removeItem(LS_KEY);
+        return false;
+      }
+    }
+
+    async function pullHistoryFromServer() {
+      if (!sessionId) {
+        appendMeta("No session — pick History or start New chat.");
+        return;
+      }
+      const r = await fetch(
+        "/sessions/" + encodeURIComponent(sessionId) + "/messages?limit=200"
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(data.detail) || r.statusText);
+        return;
+      }
+      const messages = Array.isArray(data) ? data : [];
+      renderHistory(messages);
+      let line =
+        "Reloaded chat history from SQLite (" + messages.length + " messages).";
+      if (messages.length === 0) {
+        line +=
+          " Rows appear after you use Send (each turn is written before calling Ollama). If you expected older lines, open GET /health and confirm database matches this server, or choose another session under History.";
+      }
+      appendMeta(line);
+    }
+
+    async function loadMcpConfig() {
+      const r = await fetch("/mcp/remotes-config");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendMeta("Could not load MCP config: " + formatDetail(d.detail));
+        return;
+      }
+      if (d.content != null && String(d.content).trim()) {
+        try {
+          mcpConfigJson.value = JSON.stringify(JSON.parse(d.content), null, 2);
+        } catch {
+          mcpConfigJson.value = String(d.content);
+        }
+      } else {
+        mcpConfigJson.value = JSON.stringify({ servers: [] }, null, 2);
+      }
+      appendMeta("MCP config path: " + (d.path || "") + (d.exists ? "" : " (new file on save)"));
+    }
+
+    async function saveMcpConfig() {
+      const raw = mcpConfigJson.value;
+      const r = await fetch("/mcp/remotes-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: raw }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      appendMeta("MCP config saved to " + (d.path || "file") + ". Hub reloaded.");
+      await refreshMcpToolsSummary();
+    }
+
+    async function refreshMcpToolsSummary() {
+      const r = await fetch("/mcp/remote-tools?refresh=true");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpToolsSummary.textContent = "Could not list tools.";
+        return;
+      }
+      if (!d.configured) {
+        mcpToolsSummary.textContent =
+          "No MCP servers in config (empty servers array or missing file).";
+        return;
+      }
+      const names = (d.tools || []).map((t) => t.name).filter(Boolean);
+      mcpToolsSummary.textContent =
+        names.length +
+        " tool(s): " +
+        (names.length ? names.join(", ") : "(none returned)");
+    }
+
+    async function refreshSessionList() {
+      const r = await fetch("/sessions?limit=30");
+      const rows = await r.json().catch(() => []);
+      const cur = sessionId || "";
+      sessionPick.innerHTML = "";
+      const opt0 = document.createElement("option");
+      opt0.value = "";
+      opt0.textContent = "— pick session —";
+      sessionPick.appendChild(opt0);
+      if (Array.isArray(rows)) {
+        for (const row of rows) {
+          const o = document.createElement("option");
+          o.value = row.id;
+          const t = (row.title || "chat").slice(0, 24);
+          o.textContent = t + " · " + (row.created_at || "").slice(0, 16);
+          sessionPick.appendChild(o);
+        }
+      }
+      if (cur) sessionPick.value = cur;
+    }
+
+    async function newChat() {
+      localStorage.removeItem(LS_KEY);
+      sessionId = null;
+      logEl.innerHTML = "";
+      try {
+        await createSession();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+      }
+    }
+
+    sessionPick.addEventListener("change", async () => {
+      const v = sessionPick.value;
+      if (!v) return;
+      try {
+        busy = true;
+        await loadHistoryForSession(v);
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+      } finally {
+        busy = false;
+      }
+    });
+
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || busy) return;
+      busy = true;
+      sendBtn.disabled = true;
+      appendBubble("user", text);
+      inputEl.value = "";
+
+      try {
+        await ensureSession();
+        if (!sessionId || typeof sessionId !== "string") {
+          appendBubble("error", "No session id — cannot persist to SQLite.");
+          return;
+        }
+        const body = {
+          message: text,
+          session_id: sessionId,
+          history_limit: 40,
+          use_mcp_tools: !!useMcpEl.checked,
+        };
+        const m = modelEl.value.trim();
+        if (m) body.model = m;
+
+        const r = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          appendBubble("error", formatDetail(data.detail) || r.statusText);
+          return;
+        }
+        if ("session_id" in data) {
+          if (data.session_id != null && data.session_id !== sessionId) {
+            appendMeta("Warning: server echoed a different session_id than the client sent.");
+          }
+          if (data.session_id == null || data.session_id === "") {
+            appendMeta(
+              "Note: server did not receive session_id — this turn was not written to SQLite."
+            );
+          }
+        }
+        appendBubble("assistant", data.reply || "");
+        void refreshSessionList();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+      } finally {
+        busy = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    newChatBtn.addEventListener("click", newChat);
+    btnPullHistory.addEventListener("click", () => {
+      void pullHistoryFromServer();
+    });
+    btnLoadMcp.addEventListener("click", () => {
+      void loadMcpConfig();
+    });
+    btnSaveMcp.addEventListener("click", () => {
+      void saveMcpConfig();
+    });
+    btnRefreshMcpTools.addEventListener("click", () => {
+      void refreshMcpToolsSummary();
+    });
+
+    inputEl.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function init() {
+      const params = new URLSearchParams(location.search);
+      const q = params.get("session");
+      try {
+        if (q) {
+          await loadHistoryForSession(q);
+          appendMeta("Opened from ?session= in URL.");
+        } else if (!(await tryRestoreSession())) {
+          await newChat();
+        }
+        await refreshSessionList();
+        if (sessionId) sessionPick.value = sessionId;
+        await loadMcpConfig();
+        await refreshMcpToolsSummary();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+        await newChat();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

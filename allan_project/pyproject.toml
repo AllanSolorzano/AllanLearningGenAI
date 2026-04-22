@@ -1,0 +1,28 @@
+[project]
+name = "allan-ollama-mcp"
+version = "0.1.0"
+description = "MCP stdio server, FastAPI, Ollama chat, SQLite sessions"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "fastapi>=0.136.0",
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.27.0",
+    "uvicorn[standard]>=0.45.0",
+]
+
+[project.scripts]
+ollama-mcp-server = "allan_ollama_mcp.server:main"
+allan-api = "allan_ollama_mcp.app:serve"
+
+# Required so `uv sync` / `uv run` install console scripts (allan-api, ollama-mcp-server).
+[tool.uv]
+package = true
+
+[build-system]
+requires = ["hatchling>=1.18.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["allan_ollama_mcp"]

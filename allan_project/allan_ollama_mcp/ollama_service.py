@@ -170,6 +170,7 @@ async def chat_with_optional_session(
     history_limit: int = 40,
     *,
     use_mcp_tools: bool = False,
+    use_agent_pipeline: bool = False,
 ) -> str:
     use_model = (model or DEFAULT_MODEL).strip()
     sid = (session_id or "").strip()
@@ -199,7 +200,22 @@ async def chat_with_optional_session(
         await database.append_message(sid, "user", message, None)
 
     async with httpx.AsyncClient() as client:
-        if use_tools and tools:
+        if use_agent_pipeline and sid:
+            from . import agent_orchestrator
+
+            history_for_agent = await database.fetch_messages_for_model(
+                sid, history_limit
+            )
+            reply = await agent_orchestrator.run_agent_turn(
+                client,
+                session_id=sid,
+                user_message=message,
+                model=use_model,
+                history_msgs=history_for_agent,
+                use_mcp_tools=use_mcp_tools,
+                system_policy=system,
+            )
+        elif use_tools and tools:
             reply = await _chat_with_tools_loop(
                 client,
                 use_model,

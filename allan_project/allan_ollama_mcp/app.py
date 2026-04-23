@@ -6,6 +6,11 @@ Environment (in addition to OLLAMA_* and MCP_DATABASE_PATH):
   API_PORT                    Port (default: 8000)
   MCP_REMOTE_SERVERS_CONFIG   Optional JSON file listing stdio MCP servers to merge as Ollama tools
   OLLAMA_TOOLS_MAX_ROUNDS     Max tool round-trips per chat request (default: 12)
+  ALLAN_AGENT_MAX_REPLANS     Max replan rounds after verifier (default: 2)
+  ALLAN_AGENT_TRACE_MD        Write human-readable traces under data/traces/ (default: 1)
+  ALLAN_AGENT_MEMORY_WRITE    Persist turn summaries to markdown + FTS (default: 1)
+  ALLAN_MEMORY_DIR            Override durable memory root directory
+  ALLAN_CAPABILITY_SCORE_MIN  Min intent→tool score before clarification (default: 0.18)
 
 HTTP (local dev, no auth):
 
@@ -138,6 +143,13 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     history_limit: int = Field(40, ge=1, le=500)
     use_mcp_tools: bool = False
+    use_agent_pipeline: bool = Field(
+        default=False,
+        description=(
+            "Structured agent flow: preparse → intents → capabilities → plan → "
+            "execute/verify/replan → evidence-based reply → durable memory."
+        ),
+    )
 
 
 class ChatResponse(BaseModel):
@@ -158,6 +170,7 @@ async def chat(body: ChatRequest) -> ChatResponse:
             session_id=body.session_id,
             history_limit=body.history_limit,
             use_mcp_tools=body.use_mcp_tools,
+            use_agent_pipeline=body.use_agent_pipeline,
         )
     except SessionNotFoundError as e:
         raise HTTPException(

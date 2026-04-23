@@ -236,7 +236,7 @@
   <header>
     <div>
       <h1>allan_project</h1>
-      <div class="sub">SQLite-backed history — refresh or pick a session to resume. MCP tools optional.</div>
+      <div class="sub">SQLite-backed history, optional MCP tools, and an agent pipeline (preparse → plan → verify → memory).</div>
     </div>
     <div class="toolbar">
       <label style="font-size:0.8rem;color:var(--muted)" for="sessionPick">History</label>
@@ -248,6 +248,9 @@
       <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.25rem">
         <input type="checkbox" id="useMcp" /> MCP tools
       </label>
+      <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.25rem">
+        <input type="checkbox" id="useAgent" /> Agent pipeline
+      </label>
       <button type="button" id="btnPullHistory" title="Reload messages from SQLite">Reload history</button>
       <button type="button" id="newChat">New chat</button>
       <a href="/docs">API docs</a>
@@ -257,7 +260,7 @@
   <details class="panel" id="settingsPanel">
     <summary>Settings — MCP servers &amp; history</summary>
     <div class="panel-body">
-      <div class="hint">MCP config is saved to the file shown after “Load”. Use a tools-capable Ollama model and enable “MCP tools” above when chatting.</div>
+      <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Agent pipeline”. Enable “MCP tools” when the plan should call remote tools.</div>
       <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
       <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
       <div class="panel-row">
@@ -283,6 +286,7 @@
     const sendBtn = document.getElementById("send");
     const newChatBtn = document.getElementById("newChat");
     const useMcpEl = document.getElementById("useMcp");
+    const useAgentEl = document.getElementById("useAgent");
     const sessionPick = document.getElementById("sessionPick");
     const btnPullHistory = document.getElementById("btnPullHistory");
     const mcpConfigJson = document.getElementById("mcpConfigJson");
@@ -537,6 +541,7 @@
           session_id: sessionId,
           history_limit: 40,
           use_mcp_tools: !!useMcpEl.checked,
+          use_agent_pipeline: !!useAgentEl.checked,
         };
         const m = modelEl.value.trim();
         if (m) body.model = m;

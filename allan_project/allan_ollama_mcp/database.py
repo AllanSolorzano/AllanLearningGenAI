@@ -38,6 +38,37 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, id);
+CREATE TABLE IF NOT EXISTS durable_memory_index (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    rel_path TEXT NOT NULL,
+    title TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_durable_memory_session ON durable_memory_index(session_id, id);
+CREATE TABLE IF NOT EXISTS agent_turn_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    phase TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_turn_session ON agent_turn_log(session_id, id);
+CREATE TABLE IF NOT EXISTS agent_step_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    tool_name TEXT,
+    detail_json TEXT,
+    latency_ms INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_step_corr ON agent_step_events(session_id, correlation_id, id);
 """
 
 
@@ -51,11 +82,37 @@ async def _migrate_chat_messages(db: aiosqlite.Connection) -> None:
         await db.execute("ALTER TABLE chat_messages ADD COLUMN tool_calls_json TEXT")
 
 
+async def _migrate_fts_memory(db: aiosqlite.Connection) -> None:
+    cur = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+    )
+    row = await cur.fetchone()
+    if row is not None:
+        return
+    try:
+        await db.execute(
+            """
+            CREATE VIRTUAL TABLE durable_memory_fts USING fts5(
+                memory_id UNINDEXED,
+                session_id UNINDEXED,
+                rel_path UNINDEXED,
+                title,
+                content,
+                tokenize = 'porter unicode61'
+            )
+            """
+        )
+    except Exception:
+        # Extremely old SQLite builds without FTS5 — skip search index.
+        pass
+
+
 async def init_db() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(_SCHEMA)
         await _migrate_chat_messages(db)
+        await _migrate_fts_memory(db)
         await db.commit()
 
 
@@ -215,3 +272,126 @@ async def get_messages_display(
             )
         )
     return out
+
+
+async def insert_durable_memory_meta(
+    session_id: str | None,
+    rel_path: str,
+    title: str | None,
+) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO durable_memory_index (session_id, rel_path, title, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (session_id, rel_path, (title or "").strip(), _utc_now()),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def insert_durable_memory_fts(
+    memory_id: int,
+    session_id: str | None,
+    rel_path: str,
+    title: str,
+    content: str,
+) -> None:
+    sid = session_id if session_id else ""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+        )
+        if await cur.fetchone() is None:
+            return
+        await db.execute(
+            """INSERT INTO durable_memory_fts
+               (memory_id, session_id, rel_path, title, content)
+               VALUES (?, ?, ?, ?, ?)""",
+            (memory_id, sid, rel_path, title, content),
+        )
+        await db.commit()
+
+
+async def search_durable_memory_fts(
+    session_id: str,
+    fts_match_clause: str,
+    *,
+    limit: int = 8,
+) -> list[tuple[int, str, str, str, str]]:
+    """Return rows: memory_id, rel_path, title, snippet, session_scope."""
+    limit = max(1, min(limit, 50))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+        )
+        if await cur.fetchone() is None:
+            return []
+        try:
+            qcur = await db.execute(
+                """SELECT memory_id, rel_path, title,
+                          snippet(durable_memory_fts, 4, '[', ']', '…', 24),
+                          session_id
+                   FROM durable_memory_fts
+                   WHERE durable_memory_fts MATCH ?
+                     AND (session_id = '' OR session_id = ?)
+                   LIMIT ?""",
+                (fts_match_clause, session_id, limit),
+            )
+            rows = await qcur.fetchall()
+        except Exception:
+            return []
+    return [
+        (int(r[0]), str(r[1]), str(r[2] or ""), str(r[3] or ""), str(r[4] or ""))
+        for r in rows
+    ]
+
+
+async def append_agent_turn_log(
+    session_id: str,
+    phase: str,
+    payload: dict[str, Any],
+) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_turn_log (session_id, phase, payload_json, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (session_id, phase, json.dumps(payload, default=str), _utc_now()),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def append_agent_step_event(
+    session_id: str,
+    correlation_id: str,
+    step_id: str,
+    state: str,
+    *,
+    tool_name: str | None = None,
+    detail: dict[str, Any] | None = None,
+    latency_ms: int | None = None,
+) -> int:
+    """Append a lifecycle row: queued | running | succeeded | failed | waiting | deferred."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_step_events
+               (session_id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                session_id,
+                correlation_id,
+                step_id,
+                state,
+                tool_name,
+                json.dumps(detail or {}, default=str),
+                latency_ms,
+                _utc_now(),
+            ),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)

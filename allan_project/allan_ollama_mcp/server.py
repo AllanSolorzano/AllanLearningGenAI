@@ -59,7 +59,7 @@ async def chat(
     Start Ollama (`ollama serve`) and pull a model first, e.g. `ollama pull llama3.2`.
     """
     try:
-        return await ollama_service.chat_with_optional_session(
+        turn = await ollama_service.chat_with_optional_session(
             message=message,
             model=model,
             system=system,
@@ -67,6 +67,7 @@ async def chat(
             history_limit=history_limit,
             use_mcp_tools=use_mcp_tools,
         )
+        return turn.reply
     except SessionNotFoundError:
         return (
             f"Unknown session_id: {session_id!r}. "
@@ -136,9 +137,9 @@ async def db_list_chat_sessions(limit: int = 20) -> str:
     rows = await database.list_sessions(limit)
     if not rows:
         return "(no sessions yet)"
-    lines = ["id\ttitle\tcreated_at"]
-    for sid, title, created in rows:
-        lines.append(f"{sid}\t{title}\t{created}")
+    lines = ["id\ttitle\tcreated_at\tmessage_count"]
+    for sid, title, created, n in rows:
+        lines.append(f"{sid}\t{title}\t{created}\t{n}")
     return "\n".join(lines)
 
 

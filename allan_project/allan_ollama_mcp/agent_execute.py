@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from collections import defaultdict, deque
+from collections import defaultdict
 from typing import Any
 
 from . import agent_llm
@@ -14,7 +14,16 @@ from .mcp_hub import McpHub
 from .ollama_service import _coerce_tool_arguments
 
 
+def _step_priority(step: dict[str, Any]) -> int:
+    p = step.get("priority")
+    try:
+        return int(p)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0
+
+
 def _toposort_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Topological order; ties broken by lower ``priority`` then lexicographic step id."""
     by_id: dict[str, dict[str, Any]] = {}
     for s in steps:
         if not isinstance(s, dict):
@@ -31,17 +40,20 @@ def _toposort_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 if xs in by_id:
                     preds[sid].add(xs)
 
+    remaining: set[str] = set(by_id.keys())
     in_deg = {sid: len(preds[sid]) for sid in by_id}
-    q = deque([sid for sid in by_id if in_deg[sid] == 0])
     out: list[dict[str, Any]] = []
-    while q:
-        n = q.popleft()
+    while remaining:
+        ready = [sid for sid in remaining if in_deg[sid] == 0]
+        if not ready:
+            break
+        ready.sort(key=lambda sid: (_step_priority(by_id[sid]), sid))
+        n = ready[0]
+        remaining.remove(n)
         out.append(by_id[n])
-        for sid in by_id:
+        for sid in remaining:
             if n in preds[sid]:
                 in_deg[sid] -= 1
-                if in_deg[sid] == 0:
-                    q.append(sid)
     if len(out) != len(by_id):
         return list(by_id.values())
     return out
@@ -112,6 +124,18 @@ async def execute_plan_graph(
         ]
     steps = _toposort_steps([s for s in steps_in if isinstance(s, dict)])
     evidence: list[dict[str, Any]] = []
+
+    ec_raw = plan.get("execution_constraints")
+    if isinstance(ec_raw, list) and ec_raw:
+        constraints = [str(x) for x in ec_raw[:48] if str(x).strip()]
+        if constraints:
+            await database.append_agent_step_event(
+                session_id,
+                correlation_id,
+                "_constraints",
+                "ok",
+                detail={"execution_constraints": constraints},
+            )
 
     for step in steps:
         sid = str(step.get("id") or "").strip() or "step"

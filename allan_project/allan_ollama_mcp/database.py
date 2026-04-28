@@ -69,6 +69,16 @@ CREATE TABLE IF NOT EXISTS agent_step_events (
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_agent_step_corr ON agent_step_events(session_id, correlation_id, id);
+CREATE TABLE IF NOT EXISTS agent_handoffs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    detail_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_handoffs_session ON agent_handoffs(session_id, id);
 """
 
 
@@ -223,18 +233,23 @@ async def fetch_messages_for_model(
     return out
 
 
-async def list_sessions(limit: int) -> list[tuple[str, str, str]]:
+async def list_sessions(limit: int) -> list[tuple[str, str, str, int]]:
     limit = max(1, min(limit, 200))
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
-            """SELECT id, COALESCE(title, ''), created_at FROM chat_sessions
-               ORDER BY datetime(created_at) DESC
+            """SELECT cs.id, COALESCE(cs.title, ''), cs.created_at,
+                      COALESCE(
+                          (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = cs.id),
+                          0
+                      ) AS msg_count
+               FROM chat_sessions cs
+               ORDER BY datetime(cs.created_at) DESC
                LIMIT ?""",
             (limit,),
         )
         rows = await cur.fetchall()
-    return [(str(r[0]), str(r[1]), str(r[2])) for r in rows]
+    return [(str(r[0]), str(r[1]), str(r[2]), int(r[3] or 0)) for r in rows]
 
 
 async def get_messages_display(
@@ -395,3 +410,140 @@ async def append_agent_step_event(
         )
         await db.commit()
         return int(cur.lastrowid or 0)
+
+
+async def list_agent_turn_logs(
+    session_id: str,
+    *,
+    limit: int = 120,
+) -> list[tuple[int, str, dict[str, Any], str]]:
+    """Recent ``limit`` orchestration phases (chronological): id, phase, payload dict, created_at."""
+    limit = max(1, min(limit, 500))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, phase, payload_json, created_at FROM (
+                   SELECT id, phase, payload_json, created_at
+                   FROM agent_turn_log
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, dict[str, Any], str]] = []
+    for r in rows:
+        raw = r[2]
+        try:
+            payload = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            payload = {"_parse_error": True, "raw": str(raw)[:2000]}
+        if not isinstance(payload, dict):
+            payload = {"value": payload}
+        out.append((int(r[0]), str(r[1]), payload, str(r[3])))
+    return out
+
+
+async def list_agent_step_events(
+    session_id: str,
+    *,
+    limit: int = 200,
+) -> list[tuple[int, str, str, str, str | None, dict[str, Any], int | None, str]]:
+    """Recent ``limit`` step lifecycle rows (chronological)."""
+    limit = max(1, min(limit, 500))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at FROM (
+                   SELECT id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at
+                   FROM agent_step_events
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, str, str, str | None, dict[str, Any], int | None, str]] = []
+    for r in rows:
+        raw = r[5]
+        try:
+            detail = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            detail = {"_parse_error": True}
+        if not isinstance(detail, dict):
+            detail = {"value": detail}
+        out.append(
+            (
+                int(r[0]),
+                str(r[1]),
+                str(r[2]),
+                str(r[3]),
+                str(r[4]) if r[4] is not None else None,
+                detail,
+                int(r[6]) if r[6] is not None else None,
+                str(r[7]),
+            )
+        )
+    return out
+
+
+async def append_agent_handoff(
+    session_id: str,
+    correlation_id: str,
+    status: str,
+    detail: dict[str, Any],
+) -> int:
+    """Record a specialist / delegate handoff (or routing intent) for traceability."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_handoffs (session_id, correlation_id, status, detail_json, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                session_id.strip(),
+                correlation_id.strip(),
+                status.strip(),
+                json.dumps(detail, default=str),
+                _utc_now(),
+            ),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def list_agent_handoffs(
+    session_id: str,
+    *,
+    limit: int = 80,
+) -> list[tuple[int, str, str, dict[str, Any], str]]:
+    """Recent handoff rows: id, correlation_id, status, detail dict, created_at."""
+    limit = max(1, min(limit, 300))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, correlation_id, status, detail_json, created_at FROM (
+                   SELECT id, correlation_id, status, detail_json, created_at
+                   FROM agent_handoffs
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, str, dict[str, Any], str]] = []
+    for r in rows:
+        raw = r[3]
+        try:
+            detail = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            detail = {"_parse_error": True}
+        if not isinstance(detail, dict):
+            detail = {"value": detail}
+        out.append((int(r[0]), str(r[1]), str(r[2]), detail, str(r[4])))
+    return out

@@ -80,6 +80,9 @@ async def ollama_chat_text(
 SEMANTIC_INTENT_LAYER2_SYSTEM = """You are Layer 2 semantic intent classifier for a tool-orchestrating platform.
 Output JSON only. Do not plan. Do not name specific MCP tool ids (you do not see the registry).
 
+Treat this as multi-label intent discovery: return several ``candidate_intents`` when the user message
+supports more than one interpretation (e.g. both query_kb and invoke_mcp). Rank by confidence.
+
 Each candidate's "intent" MUST be one of these canonical values:
 query_kb | invoke_mcp | delegate_agent | compose | plan_only | clarify | actuate
 
@@ -260,16 +263,20 @@ Planning rules:
 6. Add fallback only if policy allows it.
 7. If the objective cannot be satisfied safely, return plan_status blocked with reason in goal/strategy fields and an empty steps array or only inspection steps.
 8. Never invent a ``tool`` id: every ``tool`` value MUST be copied exactly from ``available_capabilities[].tool``. If the user asks for a capability that is not listed there, return plan_status needs_clarification or blocked instead of a fake tool name.
+9. Assign each step an integer ``priority`` (lower runs earlier among steps with the same dependency depth). Respect ``depends_on`` as a DAG.
+10. ``planner_input`` includes ``registered_execution_backends`` (MCP servers: backend_id, transport, label). Use it to pick the right ``backend_id__tool`` prefix when several servers overlap; never invent tool ids.
 Return JSON with this shape:
 {
   "goal": "string",
   "strategy": "string",
   "plan_status": "ready|needs_clarification|blocked",
+  "execution_constraints": ["optional strings: timeouts, no_shell, read_only, etc."],
   "steps": [
     {
       "id": "step_id",
       "title": "string",
       "kind": "action|inspection|verification|fallback",
+      "priority": 0,
       "tool": "exact_tool_id_from_available_capabilities",
       "args": {},
       "depends_on": [],

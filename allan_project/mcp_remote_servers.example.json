@@ -2,6 +2,8 @@
   "servers": [
     {
       "id": "filesystem",
+      "kind": "stdio",
+      "label": "Local filesystem MCP",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
       "env": {},

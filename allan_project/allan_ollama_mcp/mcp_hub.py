@@ -6,9 +6,12 @@ Config: JSON file (see ``mcp_remote_servers.example.json`` in the project root).
 
 Each server entry::
 
-  { \"id\": \"myserver\", \"command\": \"npx\", \"args\": [...], \"env\": {}, \"cwd\": null }
+  { \"id\": \"myserver\", \"command\": \"npx\", \"args\": [...], \"env\": {}, \"cwd\": null,
+    \"kind\": \"stdio\", \"label\": \"Human-readable name\" }
 
-Tool names sent to Ollama are prefixed as ``{id}__{tool_name}`` to avoid collisions.
+Optional ``kind`` (default ``stdio``) and ``label`` are exposed to the planner as
+``registered_execution_backends`` for routing visibility. Tool names sent to Ollama are
+prefixed as ``{id}__{tool_name}`` to avoid collisions.
 """
 
 from __future__ import annotations
@@ -39,6 +42,8 @@ class RemoteServerEntry:
     args: list[str]
     env: dict[str, str] | None = None
     cwd: str | None = None
+    kind: str | None = None
+    label: str | None = None
 
 
 def _config_path() -> Path:
@@ -77,8 +82,18 @@ def load_remote_servers() -> list[RemoteServerEntry]:
         env_dict = {str(k): str(v) for k, v in env.items()} if isinstance(env, dict) else None
         cwd = raw.get("cwd")
         cwd_str = str(cwd) if cwd else None
+        kind_raw = str(raw.get("kind") or "").strip() or None
+        label_raw = str(raw.get("label") or "").strip() or None
         out.append(
-            RemoteServerEntry(id=sid, command=cmd, args=arg_list, env=env_dict, cwd=cwd_str)
+            RemoteServerEntry(
+                id=sid,
+                command=cmd,
+                args=arg_list,
+                env=env_dict,
+                cwd=cwd_str,
+                kind=kind_raw,
+                label=label_raw,
+            )
         )
     return out
 
@@ -139,6 +154,12 @@ def strict_validate_servers_json(raw: str) -> dict[str, Any]:
         }
         if cwd_str:
             row["cwd"] = cwd_str
+        kind_opt = str(item.get("kind") or "").strip()
+        if kind_opt:
+            row["kind"] = kind_opt
+        label_opt = str(item.get("label") or "").strip()
+        if label_opt:
+            row["label"] = label_opt
         out.append(row)
     return {"servers": out}
 
@@ -204,6 +225,22 @@ class McpHub:
 
     def has_servers(self) -> bool:
         return bool(self._entries)
+
+    def execution_backends_summary(self) -> list[dict[str, Any]]:
+        """Planner-visible registry: stdio MCP processes (extensible to more transports later)."""
+        out: list[dict[str, Any]] = []
+        for e in self._entries:
+            transport = (e.kind or "stdio").strip() or "stdio"
+            out.append(
+                {
+                    "backend_id": e.id,
+                    "transport": transport,
+                    "label": (e.label or e.id).strip(),
+                    "command": e.command,
+                    "args_preview": e.args[:4],
+                }
+            )
+        return out
 
     def _invalidate_cache(self) -> None:
         self._cache = None

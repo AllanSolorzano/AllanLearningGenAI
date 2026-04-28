@@ -17,6 +17,7 @@ HTTP (local dev, no auth):
   GET  /mcp/remotes-config   Path + current JSON (or empty template in UI)
   PUT  /mcp/remotes-config   Body ``{\"content\": \"...\"}`` writes file and reloads MCP hub
   GET  /mcp/remote-tools?refresh=true   Re-list tools from each configured server
+  GET  /sessions/{id}/agent-trace       Phases + step events + handoffs (SQLite audit)
 
 Run ``uv run allan-api``, then open ``/`` or ``/chat`` in the browser for the **allan_project** chat UI.
 """
@@ -158,12 +159,16 @@ class ChatResponse(BaseModel):
         default=None,
         description="Echo of the session used for SQLite persistence (null if none was sent).",
     )
+    orchestration: dict[str, Any] | None = Field(
+        default=None,
+        description="Agent-pipeline trace (intent, policy, pipeline stages) when use_agent_pipeline is true.",
+    )
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest) -> ChatResponse:
     try:
-        reply = await ollama_service.chat_with_optional_session(
+        turn = await ollama_service.chat_with_optional_session(
             message=body.message,
             model=body.model,
             system=body.system,
@@ -172,6 +177,8 @@ async def chat(body: ChatRequest) -> ChatResponse:
             use_mcp_tools=body.use_mcp_tools,
             use_agent_pipeline=body.use_agent_pipeline,
         )
+        reply = turn.reply
+        orch = turn.orchestration
     except SessionNotFoundError as e:
         raise HTTPException(
             status_code=404,
@@ -182,7 +189,7 @@ async def chat(body: ChatRequest) -> ChatResponse:
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=str(e)) from e
     sid_echo = (body.session_id or "").strip() or None
-    return ChatResponse(reply=reply, session_id=sid_echo)
+    return ChatResponse(reply=reply, session_id=sid_echo, orchestration=orch)
 
 
 class SessionCreate(BaseModel):
@@ -193,6 +200,7 @@ class SessionOut(BaseModel):
     id: str
     title: str
     created_at: str
+    message_count: int = 0
 
 
 @app.post("/sessions", response_model=SessionOut)
@@ -209,7 +217,9 @@ async def list_sessions(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[SessionOut]:
     rows = await database.list_sessions(limit)
-    return [SessionOut(id=r[0], title=r[1], created_at=r[2]) for r in rows]
+    return [
+        SessionOut(id=r[0], title=r[1], created_at=r[2], message_count=r[3]) for r in rows
+    ]
 
 
 class MessageOut(BaseModel):
@@ -220,6 +230,79 @@ class MessageOut(BaseModel):
     model: str | None = None
     tool_name: str | None = None
     has_tool_calls: bool = False
+
+
+class AgentTurnLogOut(BaseModel):
+    id: int
+    phase: str
+    payload: dict[str, Any]
+    created_at: str
+
+
+class AgentStepEventOut(BaseModel):
+    id: int
+    correlation_id: str
+    step_id: str
+    state: str
+    tool_name: str | None = None
+    detail: dict[str, Any]
+    latency_ms: int | None = None
+    created_at: str
+
+
+class AgentHandoffOut(BaseModel):
+    id: int
+    correlation_id: str
+    status: str
+    detail: dict[str, Any]
+    created_at: str
+
+
+class AgentTraceBundle(BaseModel):
+    session_id: str
+    turn_logs: list[AgentTurnLogOut]
+    step_events: list[AgentStepEventOut]
+    handoffs: list[AgentHandoffOut]
+
+
+@app.get("/sessions/{session_id}/agent-trace", response_model=AgentTraceBundle)
+async def get_agent_trace(
+    session_id: str,
+    log_limit: Annotated[int, Query(ge=1, le=500)] = 120,
+    event_limit: Annotated[int, Query(ge=1, le=500)] = 200,
+    handoff_limit: Annotated[int, Query(ge=1, le=300)] = 80,
+) -> AgentTraceBundle:
+    """SQLite-backed orchestration audit: phases, step events, and delegate handoffs."""
+    sid = session_id.strip()
+    if not await database.session_exists(sid):
+        raise HTTPException(status_code=404, detail="Unknown session")
+    log_rows = await database.list_agent_turn_logs(sid, limit=log_limit)
+    ev_rows = await database.list_agent_step_events(sid, limit=event_limit)
+    ho_rows = await database.list_agent_handoffs(sid, limit=handoff_limit)
+    return AgentTraceBundle(
+        session_id=sid,
+        turn_logs=[
+            AgentTurnLogOut(id=i, phase=p, payload=payload, created_at=ts)
+            for i, p, payload, ts in log_rows
+        ],
+        step_events=[
+            AgentStepEventOut(
+                id=i,
+                correlation_id=corr,
+                step_id=step_id,
+                state=st,
+                tool_name=tn,
+                detail=detail,
+                latency_ms=lat,
+                created_at=ts,
+            )
+            for i, corr, step_id, st, tn, detail, lat, ts in ev_rows
+        ],
+        handoffs=[
+            AgentHandoffOut(id=i, correlation_id=corr, status=st, detail=detail, created_at=ts)
+            for i, corr, st, detail, ts in ho_rows
+        ],
+    )
 
 
 @app.get("/sessions/{session_id}/messages", response_model=list[MessageOut])

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import dataclass
 from typing import Any
 
 import httpx
@@ -22,6 +23,14 @@ def _hub():
 class SessionNotFoundError(Exception):
     def __init__(self, session_id: str) -> None:
         self.session_id = session_id
+
+
+@dataclass(frozen=True)
+class ChatTurnResult:
+    """Assistant reply plus optional agent-pipeline trace for the HTTP UI."""
+
+    reply: str
+    orchestration: dict[str, Any] | None = None
 
 
 def _coerce_tool_arguments(raw: Any) -> dict[str, Any]:
@@ -171,7 +180,7 @@ async def chat_with_optional_session(
     *,
     use_mcp_tools: bool = False,
     use_agent_pipeline: bool = False,
-) -> str:
+) -> ChatTurnResult:
     use_model = (model or DEFAULT_MODEL).strip()
     sid = (session_id or "").strip()
 
@@ -199,6 +208,7 @@ async def chat_with_optional_session(
     if sid:
         await database.append_message(sid, "user", message, None)
 
+    orchestration: dict[str, Any] | None = None
     async with httpx.AsyncClient() as client:
         if use_agent_pipeline and sid:
             from . import agent_orchestrator
@@ -206,7 +216,7 @@ async def chat_with_optional_session(
             history_for_agent = await database.fetch_messages_for_model(
                 sid, history_limit
             )
-            reply = await agent_orchestrator.run_agent_turn(
+            reply, orchestration = await agent_orchestrator.run_agent_turn(
                 client,
                 session_id=sid,
                 user_message=message,
@@ -231,4 +241,4 @@ async def chat_with_optional_session(
     if sid:
         await database.append_message(sid, "assistant", reply, use_model)
 
-    return reply
+    return ChatTurnResult(reply=reply, orchestration=orchestration)

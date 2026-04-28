@@ -20,6 +20,157 @@ from . import memory_store
 from .mcp_hub import get_default_hub
 
 
+def build_orchestration_for_ui(
+    *,
+    correlation_id: str,
+    normalized_user_message: str,
+    pre_d: dict[str, Any],
+    det: dict[str, Any],
+    intents_raw: dict[str, Any],
+    intent_contract: dict[str, Any],
+    cap: dict[str, Any],
+    plan: dict[str, Any] | None,
+    evidence: list[dict[str, Any]] | None,
+    has_tools: bool,
+    route: str,
+    registered_backends: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Structured payload for the browser chat (pipeline bar, intent trace, tool fit)."""
+    plan = plan or {}
+    evidence = evidence or []
+
+    def tools_used() -> bool:
+        for e in evidence:
+            if str(e.get("type") or "") == "tool":
+                return True
+        return False
+
+    tu = tools_used()
+    cands = intents_raw.get("candidate_intents") or []
+    primary: dict[str, Any] = {}
+    if isinstance(cands, list) and cands and isinstance(cands[0], dict):
+        primary = cands[0]
+
+    intent_trace: dict[str, Any] = {
+        "deterministic_parse": {
+            "verbs": det.get("verbs"),
+            "entities": det.get("entities"),
+            "risk_flags": det.get("risk_flags"),
+            "execution_mode_hint": det.get("execution_mode_hint"),
+        },
+        "request_type": intents_raw.get("request_type"),
+        "primary_intent": primary.get("intent"),
+        "candidate_intents_preview": [
+            str(c.get("intent"))
+            for c in cands[:6]
+            if isinstance(c, dict) and c.get("intent") is not None
+        ],
+    }
+
+    kw: list[str] = []
+    verbs = det.get("verbs")
+    if isinstance(verbs, list):
+        kw.extend(str(v) for v in verbs if str(v).strip())
+    ent = det.get("entities")
+    if isinstance(ent, dict):
+        kw.extend(str(k) for k in ent.keys())
+    pe = primary.get("entities")
+    if isinstance(pe, dict):
+        kw.extend(str(k) for k in pe.keys())
+    seen: set[str] = set()
+    keywords: list[str] = []
+    for k in kw:
+        kk = k.strip().lower()
+        if kk and kk not in seen:
+            seen.add(kk)
+            keywords.append(k.strip())
+    keywords = keywords[:24]
+
+    oq: list[str] = []
+    if intents_raw.get("needs_clarification") and intents_raw.get("clarification_question"):
+        oq.append(str(intents_raw["clarification_question"]))
+    if cap.get("clarification_reason"):
+        oq.append(str(cap["clarification_reason"]))
+    for note in cap.get("policy_notes") or []:
+        ns = str(note).lower()
+        if "clarif" in ns or "threshold" in ns or "blocked" in ns:
+            oq.append(str(note))
+    oq = list(dict.fromkeys(oq))[:12]
+
+    best = cap.get("best_tool_score", 0)
+    if not has_tools:
+        tool_fit = (
+            "MCP tools are off or not configured for this server, so execution intents "
+            "cannot invoke remote tools."
+        )
+    elif cap.get("clarification_needed"):
+        tool_fit = (
+            f"Policy or confidence gate before execution. Best registry score {best}. "
+            "See open questions for what to clarify."
+        )
+    elif tu:
+        tool_fit = f"Tools ran this turn. Best pre-exec capability score was {best}."
+    else:
+        tool_fit = (
+            f"No MCP tool rows in the evidence bundle; best capability score {best}. "
+            "This turn may be explanation-only or used local reasoning."
+        )
+
+    highlighted = cap.get("clarification_reason") or intents_raw.get("clarification_question")
+    if not highlighted and isinstance(plan.get("clarification_question"), str):
+        highlighted = plan.get("clarification_question")
+    if not highlighted and oq:
+        highlighted = oq[0]
+
+    stages: list[dict[str, str]] = [
+        {"id": "received", "label": "Received", "state": "done"},
+        {"id": "preparse", "label": "Preparse", "state": "done"},
+        {"id": "intent", "label": "intent.md", "state": "done"},
+        {"id": "review", "label": "Review", "state": "done"},
+    ]
+    if route == "clarification":
+        stages.append({"id": "trace", "label": "Trace + tools", "state": "skipped"})
+    elif route == "plan_blocked":
+        stages.append({"id": "trace", "label": "Trace + tools", "state": "deferred"})
+    else:
+        st = "done" if tu else "skipped"
+        stages.append({"id": "trace", "label": "Trace + tools", "state": st})
+    stages.append({"id": "response", "label": "Response", "state": "done"})
+
+    intent_draft_md = "## Intent contract\n\n" + json.dumps(
+        intent_contract, indent=2, default=str
+    )[:12000]
+
+    tool_steps = sum(1 for e in evidence if str(e.get("type") or "") == "tool")
+    orch_events = len(stages) + tool_steps + len(oq)
+
+    return {
+        "correlation_id": correlation_id,
+        "route": route,
+        "intent_trace": intent_trace,
+        "extracted_keywords": keywords,
+        "open_questions": oq,
+        "tool_fit": tool_fit,
+        "highlighted_question": highlighted,
+        "intent_draft_markdown": intent_draft_md,
+        "pipeline_stages": stages,
+        "orchestration_event_count": max(2, orch_events),
+        "preparse_summary": {
+            "verbs": pre_d.get("verbs"),
+            "risk_hints": pre_d.get("risk_hints"),
+            "constraints": (pre_d.get("constraints") or [])[:10],
+        },
+        "model_extras": {
+            "has_mcp_tools": has_tools,
+            "clarification_needed": bool(cap.get("clarification_needed")),
+            "plan_status": plan.get("plan_status"),
+            "registered_backend_count": len(registered_backends or []),
+        },
+        "registered_execution_backends": list(registered_backends or []),
+        "request_preview": normalized_user_message[:220],
+    }
+
+
 def _history_tail_for_evidence(messages: list[dict[str, Any]], max_turns: int = 8) -> str:
     lines: list[str] = []
     for m in messages[-max_turns:]:
@@ -44,7 +195,7 @@ async def run_agent_turn(
     history_msgs: list[dict[str, Any]],
     use_mcp_tools: bool,
     system_policy: str | None = None,
-) -> str:
+) -> tuple[str, dict[str, Any]]:
     sid = session_id.strip()
     correlation_id = str(uuid.uuid4())
 
@@ -142,9 +293,28 @@ async def run_agent_turn(
     )
     await log("capability_resolve", cap)
 
-    resolved_list = cap.get("resolved") or []
     planner_input = cap.get("planner_input") or {}
     planner_input["normalized_user_request"] = normalized
+    planner_input["registered_execution_backends"] = hub.execution_backends_summary()
+
+    sb = cap.get("selected_intent_bundle") or {}
+    primary_intent = str(sb.get("intent") or "").strip().lower()
+    if primary_intent == "delegate_agent":
+        h_detail: dict[str, Any] = {
+            "primary_intent": primary_intent,
+            "entities": sb.get("entities"),
+            "reasoning": str(sb.get("reasoning") or "")[:4000],
+            "registered_execution_backends": planner_input["registered_execution_backends"],
+            "user_request_excerpt": normalized[:800],
+        }
+        await database.append_agent_handoff(sid, correlation_id, "recorded", h_detail)
+        await log(
+            "handoff_recorded",
+            {
+                "intent": primary_intent,
+                "backend_count": len(planner_input["registered_execution_backends"]),
+            },
+        )
 
     if cap.get("clarification_needed"):
         evidence: list[dict[str, Any]] = [
@@ -188,7 +358,21 @@ async def run_agent_turn(
         )
         await _maybe_write_memory(client, model, sid, user_message, reply, evidence, log)
         await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, {}, evidence)
-        return reply
+        orch = build_orchestration_for_ui(
+            correlation_id=correlation_id,
+            normalized_user_message=normalized,
+            pre_d=pre_d,
+            det=det,
+            intents_raw=intents_raw,
+            intent_contract=pipeline["intent_contract"],
+            cap=cap,
+            plan={},
+            evidence=evidence,
+            has_tools=has_tools,
+            route="clarification",
+            registered_backends=planner_input.get("registered_execution_backends"),
+        )
+        return reply, orch
 
     plan = await agent_llm.plan_graph(client, model, planner_input=planner_input)
     if plan.get("steps") and "plan_status" not in plan:
@@ -233,7 +417,21 @@ async def run_agent_turn(
         )
         await _maybe_write_memory(client, model, sid, user_message, reply, evidence, log)
         await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, plan, evidence)
-        return reply
+        orch = build_orchestration_for_ui(
+            correlation_id=correlation_id,
+            normalized_user_message=normalized,
+            pre_d=pre_d,
+            det=det,
+            intents_raw=intents_raw,
+            intent_contract=pipeline["intent_contract"],
+            cap=cap,
+            plan=plan,
+            evidence=evidence,
+            has_tools=has_tools,
+            route="plan_blocked",
+            registered_backends=planner_input.get("registered_execution_backends"),
+        )
+        return reply, orch
 
     evidence = [
         {
@@ -286,7 +484,21 @@ async def run_agent_turn(
 
     await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, plan, evidence)
 
-    return reply
+    orch = build_orchestration_for_ui(
+        correlation_id=correlation_id,
+        normalized_user_message=normalized,
+        pre_d=pre_d,
+        det=det,
+        intents_raw=intents_raw,
+        intent_contract=pipeline["intent_contract"],
+        cap=cap,
+        plan=plan,
+        evidence=evidence,
+        has_tools=has_tools,
+        route="full",
+        registered_backends=planner_input.get("registered_execution_backends"),
+    )
+    return reply, orch
 
 
 async def _maybe_write_memory(

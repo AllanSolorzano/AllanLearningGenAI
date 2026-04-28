@@ -6,104 +6,285 @@
   <title>allan_project</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --surface: #1a2332;
-      --border: #2d3a4d;
-      --text: #e7ecf3;
+      --bg: #0b0e12;
+      --surface: #121820;
+      --surface2: #1a2330;
+      --border: #2a3545;
+      --text: #e8edf4;
       --muted: #8b9cb3;
       --user: #2563eb;
-      --assistant: #1e293b;
+      --assistant: #1a2332;
       --accent: #38bdf8;
+      --accent2: #4ade80;
       --error: #f87171;
+      --warn-border: rgba(250, 204, 21, 0.55);
+      --warn-bg: rgba(250, 204, 21, 0.08);
+      --sidebar-w: 15.5rem;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
     body {
-      margin: 0;
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
+      display: flex;
       min-height: 100vh;
+    }
+    /* ——— Sidebar ——— */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
+      padding: 0.75rem 0.65rem;
+      gap: 0.5rem;
     }
-    header {
-      padding: 0.75rem 1.25rem;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      flex-wrap: wrap;
+    .sidebar .brand {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.03em;
+      padding: 0.25rem 0.4rem;
     }
-    header h1 {
+    .sidebar .btn-new {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-align: left;
+    }
+    .sidebar .btn-new:hover { filter: brightness(1.08); }
+    .session-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      margin: 0.25rem 0;
+      min-height: 4rem;
+    }
+    .session-list {
+      list-style: none;
       margin: 0;
-      font-size: 1.15rem;
-      font-weight: 600;
-      letter-spacing: -0.02em;
+      padding: 0;
     }
-    header .sub {
+    .session-list li {
+      padding: 0.45rem 0.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border: 1px solid transparent;
+      margin-bottom: 0.25rem;
+    }
+    .session-list li:hover { background: var(--surface2); color: var(--text); }
+    .session-list li.active {
+      background: var(--surface2);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .session-list .sess-msgs { display: block; font-size: 0.7rem; opacity: 0.85; }
+    .session-list .sess-title { display: block; margin-top: 0.15rem; line-height: 1.35; word-break: break-word; }
+    .side-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .side-nav a, .side-nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.4rem 0.5rem;
       font-size: 0.8rem;
       color: var(--muted);
-      margin-top: 0.15rem;
-    }
-    header a {
-      color: var(--accent);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
       text-decoration: none;
-      font-size: 0.85rem;
     }
-    header a:hover { text-decoration: underline; }
-    .toolbar {
+    .side-nav a:hover, .side-nav button:hover { color: var(--accent); background: rgba(56, 189, 248, 0.06); }
+    /* ——— Main column ——— */
+    .main {
+      flex: 1;
       display: flex;
-      gap: 0.5rem;
-      align-items: center;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+    .top-header {
+      padding: 0.65rem 1rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .top-header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .top-header .subline {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+    .header-row {
+      display: flex;
       flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
     }
-    .toolbar input[type="text"] {
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .badge {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .badge.ok { border-color: rgba(74, 222, 128, 0.45); color: #86efac; background: rgba(74, 222, 128, 0.08); }
+    .badge.info { border-color: rgba(56, 189, 248, 0.45); color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+    .badge.neutral { opacity: 0.9; }
+    .badge.warn { border-color: rgba(248, 113, 113, 0.4); color: #fca5a5; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .controls label { font-size: 0.72rem; color: var(--muted); }
+    #modelSelect {
       background: var(--bg);
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 6px;
-      padding: 0.35rem 0.6rem;
-      font-size: 0.85rem;
-      width: 11rem;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.78rem;
+      max-width: 11rem;
     }
-    #sessionPick {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 6px;
-      padding: 0.35rem 0.5rem;
-      font-size: 0.8rem;
-      max-width: 14rem;
-    }
-    .toolbar button {
+    .controls button.sm {
       background: var(--border);
       color: var(--text);
       border: none;
       border-radius: 6px;
-      padding: 0.4rem 0.75rem;
-      font-size: 0.85rem;
+      padding: 0.3rem 0.55rem;
+      font-size: 0.75rem;
       cursor: pointer;
     }
-    .toolbar button:hover { filter: brightness(1.1); }
-    .toolbar button.primary {
-      background: var(--user);
-      font-weight: 500;
+    .controls button.sm:hover { filter: brightness(1.1); }
+    .chk {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.72rem;
+      color: var(--muted);
     }
+    /* ——— Orchestration strip ——— */
+    .orch-strip {
+      padding: 0.45rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .orch-strip button.ghost {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .orch-strip button.ghost:hover { color: var(--text); border-color: var(--accent); }
+    .orch-strip .events-pill {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    /* ——— Pipeline ——— */
+    .pipeline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.72rem;
+    }
+    .pipeline.hidden { display: none; }
+    .pipe-step {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--muted);
+    }
+    .pipe-step.done { color: #86efac; }
+    .pipe-step.skipped { color: #64748b; }
+    .pipe-step.deferred { color: #fbbf24; }
+    .pipe-arrow { color: var(--border); user-select: none; }
+    /* ——— Trace panel ——— */
+    .trace-panel {
+      margin: 0 1rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem 0.85rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.78rem;
+    }
+    .trace-panel.hidden { display: none; }
+    .trace-panel h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .trace-panel pre {
+      margin: 0.35rem 0;
+      padding: 0.5rem;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.68rem;
+      line-height: 1.4;
+      max-height: 10rem;
+    }
+    .trace-panel ul { margin: 0.25rem 0 0.5rem 1rem; padding: 0; color: var(--text); }
+    .trace-panel .cta {
+      margin-top: 0.5rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--warn-border);
+      background: var(--warn-bg);
+      border-radius: 8px;
+      color: #fde68a;
+    }
+    .trace-panel details { margin-top: 0.5rem; }
+    .trace-panel details summary { cursor: pointer; color: var(--accent); font-size: 0.78rem; }
+    /* ——— Messages ——— */
     #log {
       flex: 1;
       overflow-y: auto;
-      padding: 1rem 1.25rem;
+      padding: 0.75rem 1rem;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      max-width: 52rem;
-      width: 100%;
-      margin: 0 auto;
+      gap: 0.65rem;
     }
     .bubble {
-      max-width: 90%;
+      max-width: min(90%, 44rem);
       padding: 0.65rem 0.9rem;
       border-radius: 12px;
       line-height: 1.45;
@@ -127,78 +308,35 @@
       background: rgba(248, 113, 113, 0.12);
       color: var(--error);
       border: 1px solid rgba(248, 113, 113, 0.35);
-      font-size: 0.9rem;
+      font-size: 0.88rem;
     }
     .bubble.meta {
       align-self: center;
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.76rem;
       background: transparent;
       border: none;
     }
-    footer {
-      padding: 0.75rem 1.25rem 1rem;
-      border-top: 1px solid var(--border);
-      background: var(--surface);
-      max-width: 52rem;
-      width: 100%;
-      margin: 0 auto;
-    }
-    footer textarea {
-      width: 100%;
-      min-height: 3.25rem;
-      resize: vertical;
-      background: var(--bg);
+    /* ——— Settings block ——— */
+    #settingsPanel {
+      margin: 0.5rem 1rem 0;
       border: 1px solid var(--border);
-      color: var(--text);
       border-radius: 8px;
-      padding: 0.6rem 0.75rem;
-      font-size: 0.95rem;
-      font-family: inherit;
+      background: var(--surface);
+      padding: 0;
     }
-    footer textarea:focus {
-      outline: 2px solid var(--accent);
-      outline-offset: 1px;
-    }
-    .send-row {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
-      justify-content: flex-end;
-    }
-    .send-row button {
-      background: var(--user);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 0.5rem 1.1rem;
-      font-weight: 500;
+    #settingsPanel:not([open]) { border: none; background: transparent; }
+    #settingsPanel > summary {
       cursor: pointer;
-    }
-    .send-row button:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    details.panel {
-      max-width: 52rem;
-      width: 100%;
-      margin: 0 auto;
-      padding: 0.5rem 1.25rem 0;
-      color: var(--text);
-    }
-    details.panel > summary {
-      cursor: pointer;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--accent);
+      padding: 0.35rem 0.5rem;
       list-style: none;
     }
-    details.panel > summary::-webkit-details-marker { display: none; }
+    #settingsPanel > summary::-webkit-details-marker { display: none; }
     .panel-body {
-      margin-top: 0.5rem;
       padding: 0.75rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+      border-top: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
@@ -211,9 +349,9 @@
     }
     #mcpConfigJson {
       width: 100%;
-      min-height: 10rem;
+      min-height: 8rem;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       background: var(--bg);
       border: 1px solid var(--border);
       color: var(--text);
@@ -221,86 +359,270 @@
       padding: 0.5rem;
     }
     #mcpToolsSummary {
-      font-size: 0.78rem;
+      font-size: 0.74rem;
       color: var(--muted);
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .hint {
-      font-size: 0.75rem;
+    .hint { font-size: 0.72rem; color: var(--muted); }
+    /* ——— Footer ——— */
+    footer {
+      padding: 0.65rem 1rem 0.85rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    footer textarea {
+      width: 100%;
+      min-height: 3.1rem;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.92rem;
+      font-family: inherit;
+    }
+    footer textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .send-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.45rem;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .send-row button.secondary {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .send-row button.secondary:hover { color: var(--text); }
+    .send-row a.trace-link {
+      display: inline-flex;
+      align-items: center;
+      margin-right: auto;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+    }
+    .send-row a.trace-link:hover { color: var(--text); border-color: var(--accent); }
+    .send-row a.trace-link.disabled {
+      pointer-events: none;
+      opacity: 0.4;
       color: var(--muted);
     }
+    .send-row button.send {
+      background: var(--accent2);
+      color: #052e16;
+      border: none;
+      border-radius: 8px;
+      padding: 0.45rem 1.15rem;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .send-row button.send:disabled { opacity: 0.45; cursor: not-allowed; }
+    #debugPanel {
+      display: none;
+      margin: 0 1rem 0.5rem;
+      padding: 0.6rem;
+      background: #0a0c0f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 14rem;
+      overflow: auto;
+    }
+    #debugPanel.open { display: block; }
+    #debugPanel pre {
+      margin: 0;
+      font-size: 0.68rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #commandsPopover {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      right: 1rem;
+      top: 3.2rem;
+      width: min(18rem, 92vw);
+      padding: 0.65rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    }
+    #commandsPopover.open { display: block; }
+    .top-header { position: relative; }
   </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>allan_project</h1>
-      <div class="sub">SQLite-backed history, optional MCP tools, and an agent pipeline (preparse → plan → verify → memory).</div>
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="brand">allan_project</div>
+    <button type="button" class="btn-new" id="newChat">New chat</button>
+    <div class="session-list-wrap">
+      <ul class="session-list" id="sessionList" aria-label="Recent chats"></ul>
     </div>
-    <div class="toolbar">
-      <label style="font-size:0.8rem;color:var(--muted)" for="sessionPick">History</label>
-      <select id="sessionPick" aria-label="Chat session">
-        <option value="">— loading —</option>
-      </select>
-      <label style="font-size:0.8rem;color:var(--muted)">Model</label>
-      <input type="text" id="model" placeholder="tools model, e.g. qwen3" autocomplete="off" />
-      <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.25rem">
-        <input type="checkbox" id="useMcp" /> MCP tools
-      </label>
-      <label style="font-size:0.8rem;color:var(--muted);display:flex;align-items:center;gap:0.25rem">
-        <input type="checkbox" id="useAgent" /> Agent pipeline
-      </label>
-      <button type="button" id="btnPullHistory" title="Reload messages from SQLite">Reload history</button>
-      <button type="button" id="newChat">New chat</button>
-      <a href="/docs">API docs</a>
-      <a href="/mcp/remote-tools">MCP tools JSON</a>
-    </div>
-  </header>
-  <details class="panel" id="settingsPanel">
-    <summary>Settings — MCP servers &amp; history</summary>
-    <div class="panel-body">
-      <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Agent pipeline”. Enable “MCP tools” when the plan should call remote tools.</div>
-      <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
-      <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
-      <div class="panel-row">
-        <button type="button" id="btnLoadMcp">Load config</button>
-        <button type="button" id="btnSaveMcp">Save &amp; apply</button>
-        <button type="button" id="btnRefreshMcpTools">Refresh tool list</button>
+    <nav class="side-nav">
+      <button type="button" id="openSettings">Settings</button>
+      <a href="/health" target="_blank" rel="noopener">This machine</a>
+      <button type="button" id="scrollToModels">Ollama &amp; models</button>
+      <button type="button" id="openMcpSettings">MCP servers</button>
+      <a href="/docs" target="_blank" rel="noopener">OpenAPI docs</a>
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="top-header">
+      <div class="header-row">
+        <div>
+          <h1>allan_project</h1>
+          <div class="subline" id="headerSubline">Local Ollama · tools · MCP · intent plans — conversation loads below.</div>
+        </div>
+        <div class="badges" id="statusBadges" aria-live="polite">
+          <span class="badge neutral">API …</span>
+        </div>
       </div>
-      <div id="mcpToolsSummary"></div>
+      <div class="controls" style="margin-top:0.5rem" id="modelControls">
+        <label for="modelSelect">Model</label>
+        <select id="modelSelect" aria-label="Ollama model">
+          <option value="">Default (server env)</option>
+        </select>
+        <button type="button" class="sm" id="btnRefreshModels" title="Reload models from Ollama">Refresh</button>
+        <label class="chk"><input type="checkbox" id="useMcp" /> MCP tools</label>
+        <label class="chk"><input type="checkbox" id="useAgent" /> Intent plan</label>
+        <button type="button" class="sm" id="btnPullHistory">Reload history</button>
+        <button type="button" class="sm" id="btnCommands">Commands</button>
+      </div>
+      <div id="commandsPopover" role="dialog" aria-label="Shortcuts">
+        <strong style="color:var(--text)">Shortcuts</strong><br />
+        Enter — send · Shift+Enter — newline<br />
+        <kbd>/docs</kbd> — API reference (link in sidebar)<br />
+        Enable <b>Intent plan</b> for orchestration trace on each reply.
+      </div>
+    </header>
+
+    <div class="orch-strip">
+      <button type="button" class="ghost" id="btnExplain" title="What this bar does">Request explanation</button>
+      <button type="button" class="ghost" id="btnClarifyHint" title="When the model asks for clarification">Needs clarification</button>
+      <span class="events-pill" id="orchEventsPill">0 orchestration event(s)</span>
     </div>
-  </details>
-  <div id="log" aria-live="polite"></div>
-  <footer>
-    <textarea id="input" placeholder="Write a message… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
-    <div class="send-row">
-      <button type="button" id="send">Send</button>
-    </div>
-  </footer>
+
+    <div id="pipelineBar" class="pipeline hidden" aria-hidden="true"></div>
+
+    <section id="tracePanel" class="trace-panel hidden" aria-label="Orchestration trace">
+      <h3>Last turn — orchestration trace</h3>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Intent trace</strong></div>
+      <pre id="traceIntentJson"></pre>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Extracted keywords</strong></div>
+      <ul id="traceKeywords"></ul>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Open questions</strong></div>
+      <ul id="traceOpenQ"></ul>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Tool fit</strong></div>
+      <p id="traceToolFit" style="margin:0.25rem 0;color:var(--text)"></p>
+      <div id="traceCta" class="cta hidden"></div>
+      <details>
+        <summary>Technical: intent draft (markdown)</summary>
+        <pre id="traceIntentMd"></pre>
+      </details>
+    </section>
+
+    <details class="panel" id="settingsPanel">
+      <summary>Settings — MCP servers &amp; history</summary>
+      <div class="panel-body">
+        <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Intent plan”. Enable “MCP tools” when the plan should call remote tools.</div>
+        <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
+        <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+        <div class="panel-row">
+          <button type="button" id="btnLoadMcp">Load config</button>
+          <button type="button" id="btnSaveMcp">Save &amp; apply</button>
+          <button type="button" id="btnRefreshMcpTools">Refresh tool list</button>
+        </div>
+        <div id="mcpToolsSummary"></div>
+      </div>
+    </details>
+
+    <div id="log" aria-live="polite"></div>
+
+    <div id="debugPanel" aria-label="Debug console"><pre id="debugPre"></pre></div>
+
+    <footer>
+      <textarea id="input" placeholder="Describe an incident, paste an alert, or ask for help… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+      <div class="send-row">
+        <a id="agentTraceLink" class="trace-link disabled" href="#" target="_blank" rel="noopener">Agent trace (JSON)</a>
+        <button type="button" class="secondary" id="btnDebug">Console debug</button>
+        <button type="button" class="send" id="send">Send</button>
+      </div>
+    </footer>
+  </div>
+
   <script>
     const LS_KEY = "allan_project_session_id";
+    const LS_MODEL = "allan_project_model";
+    const LS_MCP = "allan_project_use_mcp";
+    const LS_AGENT = "allan_project_use_agent";
+
     const logEl = document.getElementById("log");
     const inputEl = document.getElementById("input");
-    const modelEl = document.getElementById("model");
+    const modelSelect = document.getElementById("modelSelect");
     const sendBtn = document.getElementById("send");
     const newChatBtn = document.getElementById("newChat");
     const useMcpEl = document.getElementById("useMcp");
     const useAgentEl = document.getElementById("useAgent");
-    const sessionPick = document.getElementById("sessionPick");
+    const sessionList = document.getElementById("sessionList");
     const btnPullHistory = document.getElementById("btnPullHistory");
     const mcpConfigJson = document.getElementById("mcpConfigJson");
     const btnLoadMcp = document.getElementById("btnLoadMcp");
     const btnSaveMcp = document.getElementById("btnSaveMcp");
     const btnRefreshMcpTools = document.getElementById("btnRefreshMcpTools");
     const mcpToolsSummary = document.getElementById("mcpToolsSummary");
+    const statusBadges = document.getElementById("statusBadges");
+    const headerSubline = document.getElementById("headerSubline");
+    const pipelineBar = document.getElementById("pipelineBar");
+    const tracePanel = document.getElementById("tracePanel");
+    const traceIntentJson = document.getElementById("traceIntentJson");
+    const traceKeywords = document.getElementById("traceKeywords");
+    const traceOpenQ = document.getElementById("traceOpenQ");
+    const traceToolFit = document.getElementById("traceToolFit");
+    const traceCta = document.getElementById("traceCta");
+    const traceIntentMd = document.getElementById("traceIntentMd");
+    const orchEventsPill = document.getElementById("orchEventsPill");
+    const settingsPanel = document.getElementById("settingsPanel");
+    const debugPanel = document.getElementById("debugPanel");
+    const debugPre = document.getElementById("debugPre");
+    const btnDebug = document.getElementById("btnDebug");
+    const agentTraceLink = document.getElementById("agentTraceLink");
+    const btnCommands = document.getElementById("btnCommands");
+    const commandsPopover = document.getElementById("commandsPopover");
+    const btnRefreshModels = document.getElementById("btnRefreshModels");
 
     let sessionId = null;
     let busy = false;
+    let messageOrdinal = 0;
+    let lastDebugPayload = null;
 
     function persistSessionId() {
       if (sessionId) localStorage.setItem(LS_KEY, sessionId);
       else localStorage.removeItem(LS_KEY);
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
     }
 
     function appendBubble(role, text) {
@@ -328,6 +650,158 @@
       return JSON.stringify(detail);
     }
 
+    function updateAgentTraceLink() {
+      if (!agentTraceLink) return;
+      if (!sessionId) {
+        agentTraceLink.href = "#";
+        agentTraceLink.classList.add("disabled");
+      } else {
+        agentTraceLink.href =
+          "/sessions/" + encodeURIComponent(sessionId) + "/agent-trace";
+        agentTraceLink.classList.remove("disabled");
+      }
+    }
+
+    function updateHeaderSubline() {
+      const bits = ["Local Ollama"];
+      bits.push(useMcpEl.checked ? "tools on" : "tools off");
+      bits.push("MCP");
+      bits.push(useAgentEl.checked ? "intent on" : "intent off");
+      headerSubline.textContent =
+        bits.join(" · ") + " — conversation #" + (sessionId ? sessionId.slice(0, 8) : "…") + " — messages load below.";
+    }
+
+    function setTraceVisible(vis) {
+      tracePanel.classList.toggle("hidden", !vis);
+      pipelineBar.classList.toggle("hidden", !vis);
+    }
+
+    function renderOrchestration(orch) {
+      if (!orch) {
+        setTraceVisible(false);
+        orchEventsPill.textContent = "0 orchestration event(s)";
+        return;
+      }
+      setTraceVisible(true);
+      orchEventsPill.textContent =
+        (orch.orchestration_event_count || 0) + " orchestration event(s)";
+
+      traceIntentJson.textContent = JSON.stringify(orch.intent_trace || {}, null, 2);
+      traceKeywords.innerHTML = "";
+      for (const k of orch.extracted_keywords || []) {
+        const li = document.createElement("li");
+        li.textContent = k;
+        traceKeywords.appendChild(li);
+      }
+      traceOpenQ.innerHTML = "";
+      for (const q of orch.open_questions || []) {
+        const li = document.createElement("li");
+        li.textContent = q;
+        traceOpenQ.appendChild(li);
+      }
+      traceToolFit.textContent = orch.tool_fit || "—";
+      const hq = orch.highlighted_question;
+      if (hq) {
+        traceCta.textContent = "We need one thing: " + hq;
+        traceCta.classList.remove("hidden");
+      } else {
+        traceCta.classList.add("hidden");
+      }
+      traceIntentMd.textContent = orch.intent_draft_markdown || "";
+
+      pipelineBar.innerHTML = "";
+      const stages = orch.pipeline_stages || [];
+      stages.forEach((s, i) => {
+        const sp = document.createElement("span");
+        sp.className = "pipe-step " + (s.state || "done");
+        sp.textContent = s.label || s.id;
+        pipelineBar.appendChild(sp);
+        if (i < stages.length - 1) {
+          const ar = document.createElement("span");
+          ar.className = "pipe-arrow";
+          ar.textContent = " → ";
+          pipelineBar.appendChild(ar);
+        }
+      });
+    }
+
+    async function refreshStatusBadges() {
+      const frag = document.createDocumentFragment();
+      let apiOk = false;
+      try {
+        const h = await fetch("/health");
+        apiOk = h.ok;
+      } catch (_) {}
+      const b1 = document.createElement("span");
+      b1.className = "badge " + (apiOk ? "ok" : "warn");
+      b1.textContent = apiOk ? "API up" : "API down";
+      frag.appendChild(b1);
+
+      let modelNames = [];
+      try {
+        const r = await fetch("/models");
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && Array.isArray(d.models)) modelNames = d.models;
+      } catch (_) {}
+      const b2 = document.createElement("span");
+      b2.className = "badge " + (modelNames.length ? "info" : "warn");
+      b2.textContent = modelNames.length
+        ? "Ollama · " + modelNames.length + " model(s)"
+        : "Ollama unreachable";
+      frag.appendChild(b2);
+
+      const sel = modelSelect.value.trim();
+      const b3 = document.createElement("span");
+      b3.className = "badge neutral";
+      b3.textContent = sel || "default model";
+      frag.appendChild(b3);
+
+      const b4 = document.createElement("span");
+      b4.className = "badge neutral";
+      b4.textContent = useMcpEl.checked ? "Tools on" : "Tools off";
+      frag.appendChild(b4);
+
+      const b5 = document.createElement("span");
+      b5.className = "badge " + (useAgentEl.checked ? "ok" : "neutral");
+      b5.textContent = useAgentEl.checked ? "Intent on" : "Intent off";
+      frag.appendChild(b5);
+
+      statusBadges.innerHTML = "";
+      statusBadges.appendChild(frag);
+    }
+
+    function populateModelSelect(names) {
+      const cur = modelSelect.value;
+      modelSelect.innerHTML = '<option value="">Default (server env)</option>';
+      for (const n of names) {
+        const o = document.createElement("option");
+        o.value = n;
+        o.textContent = n;
+        modelSelect.appendChild(o);
+      }
+      if (cur && [...modelSelect.options].some((o) => o.value === cur)) {
+        modelSelect.value = cur;
+      } else if (cur) {
+        const o = document.createElement("option");
+        o.value = cur;
+        o.textContent = cur + " (custom)";
+        modelSelect.appendChild(o);
+        modelSelect.value = cur;
+      }
+    }
+
+    async function loadModelsFromServer() {
+      try {
+        const r = await fetch("/models");
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail));
+        populateModelSelect(Array.isArray(d.models) ? d.models : []);
+      } catch (e) {
+        appendMeta("Could not list Ollama models: " + String(e.message || e));
+      }
+      await refreshStatusBadges();
+    }
+
     async function createSession() {
       const r = await fetch("/sessions", {
         method: "POST",
@@ -340,9 +814,12 @@
         throw new Error("Invalid session response from server (missing id).");
       }
       sessionId = data.id;
+      messageOrdinal = 0;
       persistSessionId();
       appendMeta("New session — messages are stored in SQLite for this chat.");
       await refreshSessionList();
+      updateHeaderSubline();
+      updateAgentTraceLink();
     }
 
     async function ensureSession() {
@@ -351,10 +828,13 @@
 
     function renderHistory(messages) {
       logEl.innerHTML = "";
+      messageOrdinal = 0;
       for (const m of messages) {
         const role = m.role;
-        if (role === "user") appendBubble("user", m.content || "");
-        else if (role === "assistant") {
+        if (role === "user") {
+          messageOrdinal++;
+          appendBubble("user", m.content || "");
+        } else if (role === "assistant") {
           let t = m.content || "";
           if (m.has_tool_calls) t = "(MCP tool step) " + t;
           appendBubble("assistant", t);
@@ -366,6 +846,7 @@
         } else appendMeta("[" + role + "] " + (m.content || ""));
       }
       logEl.scrollTop = logEl.scrollHeight;
+      updateHeaderSubline();
     }
 
     async function loadHistoryForSession(id) {
@@ -382,7 +863,10 @@
       persistSessionId();
       renderHistory(messages);
       appendMeta("Session " + id.slice(0, 8) + "… — " + messages.length + " row(s) from SQLite.");
-      sessionPick.value = id;
+      setTraceVisible(false);
+      orchEventsPill.textContent = "0 orchestration event(s) (load a new reply with Intent plan)";
+      await refreshSessionList();
+      updateAgentTraceLink();
       logEl.scrollTop = logEl.scrollHeight;
     }
 
@@ -393,7 +877,6 @@
         await loadHistoryForSession(raw);
         return true;
       } catch (e) {
-        // Only drop localStorage when the server says this id is gone — not on 5xx/network.
         if (e && e.name === "SessionNotFound") localStorage.removeItem(LS_KEY);
         return false;
       }
@@ -401,7 +884,7 @@
 
     async function pullHistoryFromServer() {
       if (!sessionId) {
-        appendMeta("No session — pick History or start New chat.");
+        appendMeta("No session — pick a chat in the sidebar or start New chat.");
         return;
       }
       const r = await fetch(
@@ -418,7 +901,7 @@
         "Reloaded chat history from SQLite (" + messages.length + " messages).";
       if (messages.length === 0) {
         line +=
-          " Rows appear after you use Send (each turn is written before calling Ollama). If you expected older lines, open GET /health and confirm database matches this server, or choose another session under History.";
+          " Rows appear after you use Send. If you expected older lines, confirm GET /health database path or pick another session.";
       }
       appendMeta(line);
     }
@@ -456,6 +939,7 @@
       }
       appendMeta("MCP config saved to " + (d.path || "file") + ". Hub reloaded.");
       await refreshMcpToolsSummary();
+      await refreshStatusBadges();
     }
 
     async function refreshMcpToolsSummary() {
@@ -477,56 +961,70 @@
         (names.length ? names.join(", ") : "(none returned)");
     }
 
+    function renderSessionList(rows) {
+      sessionList.innerHTML = "";
+      const cur = sessionId || "";
+      if (!Array.isArray(rows) || rows.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "No sessions yet";
+        li.style.cursor = "default";
+        sessionList.appendChild(li);
+        return;
+      }
+      for (const row of rows) {
+        const li = document.createElement("li");
+        li.dataset.id = row.id;
+        if (row.id === cur) li.classList.add("active");
+        const n = row.message_count != null ? row.message_count : 0;
+        const preview = (row.title || "chat").slice(0, 48);
+        li.innerHTML =
+          '<span class="sess-msgs">' +
+          n +
+          " msgs</span><span class=\"sess-title\">" +
+          escapeHtml(preview) +
+          "</span>";
+        li.addEventListener("click", async () => {
+          if (busy || row.id === sessionId) return;
+          try {
+            busy = true;
+            await loadHistoryForSession(row.id);
+          } catch (e) {
+            appendBubble("error", String(e.message || e));
+          } finally {
+            busy = false;
+          }
+        });
+        sessionList.appendChild(li);
+      }
+    }
+
     async function refreshSessionList() {
       const r = await fetch("/sessions?limit=30");
       const rows = await r.json().catch(() => []);
-      const cur = sessionId || "";
-      sessionPick.innerHTML = "";
-      const opt0 = document.createElement("option");
-      opt0.value = "";
-      opt0.textContent = "— pick session —";
-      sessionPick.appendChild(opt0);
-      if (Array.isArray(rows)) {
-        for (const row of rows) {
-          const o = document.createElement("option");
-          o.value = row.id;
-          const t = (row.title || "chat").slice(0, 24);
-          o.textContent = t + " · " + (row.created_at || "").slice(0, 16);
-          sessionPick.appendChild(o);
-        }
-      }
-      if (cur) sessionPick.value = cur;
+      renderSessionList(Array.isArray(rows) ? rows : []);
     }
 
     async function newChat() {
       localStorage.removeItem(LS_KEY);
       sessionId = null;
       logEl.innerHTML = "";
+      setTraceVisible(false);
+      orchEventsPill.textContent = "0 orchestration event(s)";
+      updateAgentTraceLink();
       try {
         await createSession();
       } catch (e) {
         appendBubble("error", String(e.message || e));
       }
+      await refreshStatusBadges();
     }
-
-    sessionPick.addEventListener("change", async () => {
-      const v = sessionPick.value;
-      if (!v) return;
-      try {
-        busy = true;
-        await loadHistoryForSession(v);
-      } catch (e) {
-        appendBubble("error", String(e.message || e));
-      } finally {
-        busy = false;
-      }
-    });
 
     async function sendMessage() {
       const text = inputEl.value.trim();
       if (!text || busy) return;
       busy = true;
       sendBtn.disabled = true;
+      messageOrdinal++;
       appendBubble("user", text);
       inputEl.value = "";
 
@@ -543,7 +1041,7 @@
           use_mcp_tools: !!useMcpEl.checked,
           use_agent_pipeline: !!useAgentEl.checked,
         };
-        const m = modelEl.value.trim();
+        const m = modelSelect.value.trim();
         if (m) body.model = m;
 
         const r = await fetch("/chat", {
@@ -552,8 +1050,13 @@
           body: JSON.stringify(body),
         });
         const data = await r.json().catch(() => ({}));
+        lastDebugPayload = { status: r.status, body: data };
+        if (debugPanel.classList.contains("open")) {
+          debugPre.textContent = JSON.stringify(lastDebugPayload, null, 2);
+        }
         if (!r.ok) {
           appendBubble("error", formatDetail(data.detail) || r.statusText);
+          renderOrchestration(null);
           return;
         }
         if ("session_id" in data) {
@@ -567,9 +1070,15 @@
           }
         }
         appendBubble("assistant", data.reply || "");
+        renderOrchestration(data.orchestration || null);
         void refreshSessionList();
+        void refreshStatusBadges();
       } catch (e) {
         appendBubble("error", String(e.message || e));
+        lastDebugPayload = { error: String(e) };
+        if (debugPanel.classList.contains("open")) {
+          debugPre.textContent = JSON.stringify(lastDebugPayload, null, 2);
+        }
       } finally {
         busy = false;
         sendBtn.disabled = false;
@@ -591,6 +1100,66 @@
     btnRefreshMcpTools.addEventListener("click", () => {
       void refreshMcpToolsSummary();
     });
+    btnRefreshModels.addEventListener("click", () => {
+      void loadModelsFromServer();
+    });
+
+    document.getElementById("openSettings").addEventListener("click", () => {
+      settingsPanel.open = true;
+      settingsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+    document.getElementById("openMcpSettings").addEventListener("click", () => {
+      settingsPanel.open = true;
+      settingsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      mcpConfigJson.focus();
+    });
+    document.getElementById("scrollToModels").addEventListener("click", () => {
+      document.getElementById("modelControls").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      modelSelect.focus();
+    });
+
+    document.getElementById("btnExplain").addEventListener("click", () => {
+      appendMeta(
+        "Orchestration strip: after each send with “Intent plan”, the server returns intent trace, keywords, tool fit, and pipeline stages (preparse → intent → review → tools → response)."
+      );
+    });
+    document.getElementById("btnClarifyHint").addEventListener("click", () => {
+      appendMeta(
+        "When scores are below threshold or the model marks needs_clarification, open questions and the yellow call-out list what to answer next."
+      );
+    });
+
+    btnDebug.addEventListener("click", () => {
+      debugPanel.classList.toggle("open");
+      debugPre.textContent = lastDebugPayload
+        ? JSON.stringify(lastDebugPayload, null, 2)
+        : "(no POST /chat response captured yet)";
+    });
+
+    btnCommands.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      commandsPopover.classList.toggle("open");
+    });
+    document.addEventListener("click", () => {
+      commandsPopover.classList.remove("open");
+    });
+
+    useMcpEl.addEventListener("change", () => {
+      localStorage.setItem(LS_MCP, useMcpEl.checked ? "1" : "0");
+      void refreshStatusBadges();
+      updateHeaderSubline();
+    });
+    useAgentEl.addEventListener("change", () => {
+      localStorage.setItem(LS_AGENT, useAgentEl.checked ? "1" : "0");
+      void refreshStatusBadges();
+      updateHeaderSubline();
+    });
+    modelSelect.addEventListener("change", () => {
+      const v = modelSelect.value.trim();
+      if (v) localStorage.setItem(LS_MODEL, v);
+      else localStorage.removeItem(LS_MODEL);
+      void refreshStatusBadges();
+    });
 
     inputEl.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" && !ev.shiftKey) {
@@ -600,9 +1169,21 @@
     });
 
     async function init() {
+      if (localStorage.getItem(LS_MCP) === "1") useMcpEl.checked = true;
+      if (localStorage.getItem(LS_AGENT) === "1") useAgentEl.checked = true;
+      const savedModel = localStorage.getItem(LS_MODEL);
+      if (savedModel) {
+        const o = document.createElement("option");
+        o.value = savedModel;
+        o.textContent = savedModel;
+        modelSelect.appendChild(o);
+        modelSelect.value = savedModel;
+      }
+
       const params = new URLSearchParams(location.search);
       const q = params.get("session");
       try {
+        await loadModelsFromServer();
         if (q) {
           await loadHistoryForSession(q);
           appendMeta("Opened from ?session= in URL.");
@@ -610,9 +1191,11 @@
           await newChat();
         }
         await refreshSessionList();
-        if (sessionId) sessionPick.value = sessionId;
         await loadMcpConfig();
         await refreshMcpToolsSummary();
+        updateHeaderSubline();
+        updateAgentTraceLink();
+        await refreshStatusBadges();
       } catch (e) {
         appendBubble("error", String(e.message || e));
         await newChat();

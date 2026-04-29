@@ -490,7 +490,7 @@
       <div class="header-row">
         <div>
           <h1>allan_project</h1>
-          <div class="subline" id="headerSubline">Local Ollama · tools · MCP · intent plans — conversation loads below.</div>
+          <div class="subline" id="headerSubline">Local Ollama — <b>Intent plan</b> = orchestration trace; <b>MCP tools</b> = load tool registry (both if you want planned tool runs).</div>
         </div>
         <div class="badges" id="statusBadges" aria-live="polite">
           <span class="badge neutral">API …</span>
@@ -502,8 +502,8 @@
           <option value="">Default (server env)</option>
         </select>
         <button type="button" class="sm" id="btnRefreshModels" title="Reload models from Ollama">Refresh</button>
-        <label class="chk"><input type="checkbox" id="useMcp" /> MCP tools</label>
-        <label class="chk"><input type="checkbox" id="useAgent" /> Intent plan</label>
+        <label class="chk" title="Loads the MCP tool registry for this chat; required for the planner to run remote tools. Independent of Intent plan."><input type="checkbox" id="useMcp" /> MCP tools</label>
+        <label class="chk" title="Structured intent → plan → verify → reply. Does not load tools unless MCP tools is also enabled."><input type="checkbox" id="useAgent" /> Intent plan</label>
         <button type="button" class="sm" id="btnPullHistory">Reload history</button>
         <button type="button" class="sm" id="btnCommands">Commands</button>
       </div>
@@ -543,7 +543,7 @@
     <details class="panel" id="settingsPanel">
       <summary>Settings — MCP servers &amp; history</summary>
       <div class="panel-body">
-        <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Intent plan”. Enable “MCP tools” when the plan should call remote tools.</div>
+        <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Intent plan”. “Intent plan” alone does not load MCP tools — enable “MCP tools” when the plan should call remote tools.</div>
         <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
         <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
         <div class="panel-row">

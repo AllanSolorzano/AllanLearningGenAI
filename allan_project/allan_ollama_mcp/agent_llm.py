@@ -428,6 +428,7 @@ async def compose_final_reply(
     policy = (system_policy or "").strip()
     sys = """You write the final user-facing answer from proven facts only.
 Hard rules:
+- If Evidence includes a policy row with clarification_reason that mainly asks for missing scope (what broke, which service, timeframe), lead with those clarifying questions. Treat \"no MCP tools ran\" / empty registry as secondary context unless the user explicitly asked to run tools.
 - Only name MCP tools that appear in the Evidence JSON under type \"tool\" and the \"tool\" field, with the exact string shown there. If no tool step succeeded, do not describe successful tool calls.
 - If every tool step has status \"skipped\" (e.g. MCP not configured) or there are no tool rows, say clearly that no remote MCP tools ran and do NOT invent tool ids such as serverid__... placeholders or generic names from the user request.
 - Do not claim another agent (e.g. FinOps) ran, reviewed, or produced output unless that appears verbatim in evidence. Phrase unmet delegation as \"not executed in this turn\" or suggest what the user could do next.

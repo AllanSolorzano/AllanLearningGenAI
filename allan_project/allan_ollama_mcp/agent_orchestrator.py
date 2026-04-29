@@ -303,6 +303,8 @@ async def run_agent_turn(
         pre_d,
         deterministic_parse=det,
         available_capabilities_full=avail_full,
+        mcp_tools_requested=use_mcp_tools,
+        hub_has_servers=hub.has_servers(),
     )
     await log("capability_resolve", cap)
 

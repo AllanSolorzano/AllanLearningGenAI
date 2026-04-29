@@ -183,6 +183,8 @@ def resolve_and_policy(
     *,
     deterministic_parse: dict[str, Any] | None = None,
     available_capabilities_full: list[dict[str, Any]] | None = None,
+    mcp_tools_requested: bool = True,
+    hub_has_servers: bool = False,
 ) -> dict[str, Any]:
     """
     Deterministic resolution (§6.5): map intents to live tools, apply routing rules,
@@ -332,11 +334,40 @@ def resolve_and_policy(
     elif needs_exec:
         if not tools_flat:
             clarification_needed = True
-            clarification_reason = (
-                "Execution request but MCP tool registry is empty; enable MCP tools "
-                "and configure servers."
-            )
-            policy_notes.append("execution_intent_empty_registry")
+            if not mcp_tools_requested:
+                if hub_has_servers:
+                    mcp_empty = (
+                        "Execution-style intent was detected, but **MCP tools are turned off** "
+                        "for this chat (separate from **Intent plan**). Enable the **MCP tools** "
+                        "checkbox to load the tool registry and run remote tools, or add detail "
+                        "for guidance without tool execution."
+                    )
+                    policy_notes.append("execution_intent_mcp_tools_disabled")
+                else:
+                    mcp_empty = (
+                        "Execution-style intent was detected, but **MCP tools are off** and no "
+                        "MCP servers are configured. Turn on **MCP tools** and add servers under "
+                        "MCP settings for automated actions; otherwise describe the issue for guidance."
+                    )
+                    policy_notes.append("execution_intent_mcp_tools_disabled_no_servers")
+            elif hub_has_servers:
+                mcp_empty = (
+                    "**MCP tools** are on and servers are configured, but the tool list is empty "
+                    "(list-tools may have failed or servers expose no tools). Check **MCP servers** "
+                    "and GET /mcp/remote-tools?refresh=true."
+                )
+                policy_notes.append("execution_intent_list_tools_empty")
+            else:
+                mcp_empty = (
+                    "Execution request but MCP tool registry is empty; enable **MCP tools** "
+                    "and configure servers in MCP settings."
+                )
+                policy_notes.append("execution_intent_empty_registry")
+            cq = str(llm_clar_q or "").strip()
+            if cq:
+                clarification_reason = f"{cq}\n\n— {mcp_empty}"
+            else:
+                clarification_reason = mcp_empty
         elif best < min_score and not clarification_needed:
             clarification_needed = True
             clarification_reason = (

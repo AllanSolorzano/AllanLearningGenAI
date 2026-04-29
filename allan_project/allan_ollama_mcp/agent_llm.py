@@ -101,6 +101,10 @@ optional time_windows {"start": "ISO or text", "end": "ISO or text"}, reasoning 
 Also return:
 - needs_clarification (boolean), clarification_question (string or null)
 - primary_execution_mode: one of explanation | read_only | state_changing (best guess for whole message)
+
+If ``available_skills`` is non-empty in the user JSON, treat each row as a workspace routing hint only
+(not executable tools). Prefer ``clarify`` when the user clearly targets a skill domain that has no
+matching MCP capability in the broader message context.
 """
 
 
@@ -112,13 +116,16 @@ async def semantic_intent_classify(
     layer1_deterministic: dict[str, Any],
     recent_context: list[str],
     memory_ref_titles: list[str],
+    available_skills: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """§5.1 Layer 2 only: compact classifier (registry matching is NOT in this prompt)."""
+    skills = available_skills if isinstance(available_skills, list) else []
     user_obj = {
         "normalized_user_message": normalized_user_message,
         "layer1_deterministic": layer1_deterministic,
         "recent_context": recent_context,
         "memory_ref_titles": memory_ref_titles,
+        "available_skills": skills,
     }
     messages = [
         {"role": "system", "content": SEMANTIC_INTENT_LAYER2_SYSTEM},
@@ -135,6 +142,8 @@ async def discover_intents(
     intent_user_payload: dict[str, Any],
 ) -> dict[str, Any]:
     """Backward-compatible wrapper: Layer 2 only (no L3–5). Prefer ``agent_intent_pipeline``."""
+    skills_raw = intent_user_payload.get("available_skills")
+    skills_in = list(skills_raw) if isinstance(skills_raw, list) else []
     sem = await semantic_intent_classify(
         client,
         model,
@@ -146,6 +155,7 @@ async def discover_intents(
             for m in (intent_user_payload.get("durable_memory_refs") or [])
             if isinstance(m, dict)
         ],
+        available_skills=skills_in,
     )
     return build_resolve_intent_payload(sem)
 
@@ -264,7 +274,8 @@ Planning rules:
 7. If the objective cannot be satisfied safely, return plan_status blocked with reason in goal/strategy fields and an empty steps array or only inspection steps.
 8. Never invent a ``tool`` id: every ``tool`` value MUST be copied exactly from ``available_capabilities[].tool``. If the user asks for a capability that is not listed there, return plan_status needs_clarification or blocked instead of a fake tool name.
 9. Assign each step an integer ``priority`` (lower runs earlier among steps with the same dependency depth). Respect ``depends_on`` as a DAG.
-10. ``planner_input`` includes ``registered_execution_backends`` (MCP servers: backend_id, transport, label). Use it to pick the right ``backend_id__tool`` prefix when several servers overlap; never invent tool ids.
+10. ``planner_input`` includes ``registered_execution_backends`` (MCP servers: backend_id, transport, label, optional healthy/tool_count/list_error from list-tools probes). Prefer tools from backends with healthy=true when choosing ``backend_id__tool`` prefixes; never invent tool ids.
+11. ``planner_input`` may include ``available_skills`` (id/title/summary only) and ``mcp_server_health``; use them for routing and risk notes, not as proof that a tool ran.
 Return JSON with this shape:
 {
   "goal": "string",

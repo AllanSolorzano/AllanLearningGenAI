@@ -215,12 +215,35 @@ def _format_tool_result(result: mcp_types.CallToolResult) -> str:
     return text
 
 
+def merge_mcp_health_into_backends(
+    backends: list[dict[str, Any]],
+    server_health: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Attach ``healthy``, ``tool_count``, optional ``list_error`` from a list-tools probe."""
+    by_id = {str(h.get("backend_id") or ""): h for h in server_health if h.get("backend_id")}
+    out: list[dict[str, Any]] = []
+    for b in backends:
+        row = dict(b)
+        bid = str(row.get("backend_id") or "")
+        h = by_id.get(bid) if bid else None
+        if isinstance(h, dict):
+            row["healthy"] = bool(h.get("healthy"))
+            row["tool_count"] = int(h.get("tool_count") or 0)
+            err = h.get("error")
+            if err:
+                row["list_error"] = str(err)[:800]
+        out.append(row)
+    return out
+
+
 class McpHub:
     """Stateless stdio MCP client: spawns a process per list/call (simple lifecycle)."""
 
     def __init__(self) -> None:
         self._entries = load_remote_servers()
-        self._cache: tuple[list[dict[str, Any]], dict[str, tuple[str, str]], float] | None = None
+        self._cache: (
+            tuple[list[dict[str, Any]], dict[str, tuple[str, str]], float, list[dict[str, Any]]] | None
+        ) = None
         self._ttl = float(os.environ.get("MCP_TOOLS_CACHE_TTL", "60"))
 
     def has_servers(self) -> bool:
@@ -249,17 +272,19 @@ class McpHub:
         self,
         *,
         force_refresh: bool = False,
-    ) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str]]]:
+    ) -> tuple[list[dict[str, Any]], dict[str, tuple[str, str]], list[dict[str, Any]]]:
+        """Returns (ollama_tools, routes, server_health). ``server_health`` is one row per configured backend."""
         now = time.monotonic()
         if (
             not force_refresh
             and self._cache is not None
             and now - self._cache[2] < self._ttl
         ):
-            return self._cache[0], self._cache[1]
+            return self._cache[0], self._cache[1], self._cache[3]
 
         ollama_tools: list[dict[str, Any]] = []
         routes: dict[str, tuple[str, str]] = {}
+        server_health: list[dict[str, Any]] = []
 
         for entry in self._entries:
             params = StdioServerParameters(
@@ -268,6 +293,9 @@ class McpHub:
                 env=entry.env,
                 cwd=entry.cwd,
             )
+            t0 = time.perf_counter()
+            n_tools = 0
+            err_msg: str | None = None
             try:
                 async with stdio_client(params) as (read, write):
                     async with ClientSession(read, write) as session:
@@ -284,14 +312,34 @@ class McpHub:
                                 prefixed = f"{entry.id}__{t.name}"
                                 routes[prefixed] = (entry.id, t.name)
                                 ollama_tools.append(_mcp_tool_to_ollama(prefixed, t))
+                                n_tools += 1
                             cursor = getattr(lr, "nextCursor", None)
                             if not cursor:
                                 break
-            except Exception:
+                server_health.append(
+                    {
+                        "backend_id": entry.id,
+                        "healthy": True,
+                        "error": None,
+                        "tool_count": n_tools,
+                        "list_latency_ms": int((time.perf_counter() - t0) * 1000),
+                    }
+                )
+            except Exception as exc:
                 logger.exception("Failed to list tools from MCP server %r", entry.id)
+                err_msg = f"{type(exc).__name__}: {exc}"[:800]
+                server_health.append(
+                    {
+                        "backend_id": entry.id,
+                        "healthy": False,
+                        "error": err_msg,
+                        "tool_count": 0,
+                        "list_latency_ms": int((time.perf_counter() - t0) * 1000),
+                    }
+                )
 
-        self._cache = (ollama_tools, routes, now)
-        return ollama_tools, routes
+        self._cache = (ollama_tools, routes, now, server_health)
+        return ollama_tools, routes, server_health
 
     def _resolve_entry_and_tool(self, prefixed_name: str) -> tuple[RemoteServerEntry, str]:
         for entry in self._entries:

@@ -17,7 +17,8 @@ from . import agent_preparse
 from . import agent_resolve
 from . import database
 from . import memory_store
-from .mcp_hub import get_default_hub
+from . import skill_catalog
+from .mcp_hub import get_default_hub, merge_mcp_health_into_backends
 
 
 def build_orchestration_for_ui(
@@ -203,11 +204,20 @@ async def run_agent_turn(
         merged = {**payload, "correlation_id": correlation_id}
         await database.append_agent_turn_log(sid, phase, merged)
 
+    await log(
+        "message_received",
+        {
+            "content_chars": len(user_message),
+            "content_excerpt": user_message[:800],
+        },
+    )
+
     hub = get_default_hub()
     has_tools = bool(use_mcp_tools and hub.has_servers())
     ollama_tools: list[dict[str, Any]] = []
+    mcp_server_health: list[dict[str, Any]] = []
     if has_tools:
-        ollama_tools, _ = await hub.list_ollama_tools_and_routes()
+        ollama_tools, _, mcp_server_health = await hub.list_ollama_tools_and_routes()
 
     memory_hits = await memory_store.search_relevant_memory(sid, user_message, limit=8)
     await log(
@@ -234,6 +244,8 @@ async def run_agent_turn(
         for h in memory_hits[:6]
     ]
 
+    available_skills = skill_catalog.load_available_skills()
+
     pipeline = await agent_intent_pipeline.run_layered_intent_discovery(
         client,
         model,
@@ -242,6 +254,7 @@ async def run_agent_turn(
         recent_context=recent_ctx,
         memory_refs=mem_compact,
         ollama_tools=ollama_tools,
+        available_skills=available_skills,
     )
     await log("intent_layer1", pipeline["layer1"])
     await log("intent_layer2", pipeline["layer2"])
@@ -295,7 +308,12 @@ async def run_agent_turn(
 
     planner_input = cap.get("planner_input") or {}
     planner_input["normalized_user_request"] = normalized
-    planner_input["registered_execution_backends"] = hub.execution_backends_summary()
+    planner_input["registered_execution_backends"] = merge_mcp_health_into_backends(
+        hub.execution_backends_summary(),
+        mcp_server_health,
+    )
+    planner_input["mcp_server_health"] = list(mcp_server_health)
+    planner_input["available_skills"] = list(available_skills)
 
     sb = cap.get("selected_intent_bundle") or {}
     primary_intent = str(sb.get("intent") or "").strip().lower()

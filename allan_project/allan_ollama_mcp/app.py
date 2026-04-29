@@ -118,12 +118,12 @@ async def mcp_remote_tools(
     hub = get_default_hub()
     if not hub.has_servers():
         return {"configured": False, "tools": []}
-    tools, _ = await hub.list_ollama_tools_and_routes(force_refresh=refresh)
+    tools, _, server_health = await hub.list_ollama_tools_and_routes(force_refresh=refresh)
     out = []
     for t in tools:
         fn = t.get("function") or {}
         out.append({"name": fn.get("name"), "description": fn.get("description") or ""})
-    return {"configured": True, "tools": out}
+    return {"configured": True, "tools": out, "server_health": server_health}
 
 
 @app.get("/models")

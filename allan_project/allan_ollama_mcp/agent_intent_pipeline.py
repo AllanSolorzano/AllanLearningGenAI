@@ -186,6 +186,7 @@ async def run_layered_intent_discovery(
     recent_context: list[str],
     memory_refs: list[dict[str, Any]],
     ollama_tools: list[dict[str, Any]],
+    available_skills: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     titles = [
         str(m.get("title") or m.get("path") or "")
@@ -201,6 +202,7 @@ async def run_layered_intent_discovery(
         layer1_deterministic=layer1,
         recent_context=recent_context,
         memory_ref_titles=titles,
+        available_skills=available_skills or [],
     )
     candidates = list(layer2.get("candidate_intents") or [])
     layer3 = _layer3_registry_scores(candidates, ollama_tools, layer1, normalized_message)

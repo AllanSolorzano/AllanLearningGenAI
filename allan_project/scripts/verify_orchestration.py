@@ -104,6 +104,8 @@ def main() -> int:
     print("agent-trace handoffs:", len(ho))
     if not phases:
         print("WARN: no turn_logs yet — run used agent pipeline?", file=sys.stderr)
+    elif "message_received" not in phases:
+        print("WARN: expected message_received phase in turn_logs", file=sys.stderr)
     return 0
 
 

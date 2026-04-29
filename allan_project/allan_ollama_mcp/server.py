@@ -92,7 +92,7 @@ async def list_remote_mcp_tools() -> str:
     hub = get_default_hub()
     if not hub.has_servers():
         return "(no MCP_REMOTE_SERVERS_CONFIG / mcp_remote_servers.json servers configured)"
-    tools, _ = await hub.list_ollama_tools_and_routes(force_refresh=True)
+    tools, _, _ = await hub.list_ollama_tools_and_routes(force_refresh=True)
     if not tools:
         return "(no tools returned from configured MCP servers)"
     lines: list[str] = []

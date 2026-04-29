@@ -193,7 +193,7 @@ async def chat_with_optional_session(
     use_tools = bool(use_mcp_tools and _hub().has_servers())
     tools: list[dict[str, Any]] | None = None
     if use_tools:
-        ollama_tools, _ = await _hub().list_ollama_tools_and_routes()
+        ollama_tools, _, _ = await _hub().list_ollama_tools_and_routes()
         if ollama_tools:
             tools = ollama_tools
         else:

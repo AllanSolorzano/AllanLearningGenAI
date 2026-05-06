@@ -6,6 +6,7 @@ Environment variables:
   MCP_DATABASE_PATH           SQLite file path (default: ./data/app.db next to this project)
   MCP_REMOTE_SERVERS_CONFIG   JSON list of stdio MCP servers (default: ./mcp_remote_servers.json)
   OLLAMA_TOOLS_MAX_ROUNDS     Cap on tool-call turns (default: 12)
+  ALLAN_LOG_*                 See ``allan_ollama_mcp.logging_config`` (console + rotating file under data/logs/)
 
 Use a `tools`-capable model from https://ollama.com/search?c=tools for ``use_mcp_tools=true``.
 
@@ -30,6 +31,7 @@ import json
 from mcp.server.fastmcp import FastMCP
 
 from . import database, ollama_service
+from .logging_config import configure_logging
 from .mcp_hub import get_default_hub
 from .ollama_service import SessionNotFoundError
 
@@ -58,6 +60,13 @@ async def chat(
 
     Start Ollama (`ollama serve`) and pull a model first, e.g. `ollama pull llama3.2`.
     """
+    ollama_service.log_chat_request(
+        session_id=session_id,
+        model=model,
+        use_mcp_tools=use_mcp_tools,
+        use_agent_pipeline=False,
+        message_preview=message,
+    )
     try:
         turn = await ollama_service.chat_with_optional_session(
             message=message,
@@ -200,6 +209,7 @@ async def db_append_chat_message(
 
 
 def main() -> None:
+    configure_logging()
     asyncio.run(database.init_db())
     mcp.run()
 

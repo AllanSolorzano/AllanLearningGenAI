@@ -92,6 +92,20 @@ async def _migrate_chat_messages(db: aiosqlite.Connection) -> None:
         await db.execute("ALTER TABLE chat_messages ADD COLUMN tool_calls_json TEXT")
 
 
+async def _migrate_chat_correlation(db: aiosqlite.Connection) -> None:
+    cur = await db.execute("PRAGMA table_info(chat_messages)")
+    rows = await cur.fetchall()
+    cols = {str(r[1]) for r in rows}
+    if "correlation_id" not in cols:
+        await db.execute("ALTER TABLE chat_messages ADD COLUMN correlation_id TEXT")
+
+
+async def _migrate_orch_tables(db: aiosqlite.Connection) -> None:
+    from .orch_store import ensure_orch_schema
+
+    await ensure_orch_schema(db)
+
+
 async def _migrate_fts_memory(db: aiosqlite.Connection) -> None:
     cur = await db.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
@@ -122,8 +136,13 @@ async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript(_SCHEMA)
         await _migrate_chat_messages(db)
+        await _migrate_chat_correlation(db)
+        await _migrate_orch_tables(db)
         await _migrate_fts_memory(db)
         await db.commit()
+    from .orch_store import seed_default_policies
+
+    await seed_default_policies()
 
 
 def _utc_now() -> str:
@@ -174,14 +193,24 @@ async def append_message(
     *,
     tool_name: str | None = None,
     tool_calls_json: str | None = None,
+    correlation_id: str | None = None,
 ) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("PRAGMA foreign_keys = ON")
         cur = await db.execute(
             """INSERT INTO chat_messages
-               (session_id, role, content, model, created_at, tool_name, tool_calls_json)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (session_id, role, content, model, _utc_now(), tool_name, tool_calls_json),
+               (session_id, role, content, model, created_at, tool_name, tool_calls_json, correlation_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                session_id,
+                role,
+                content,
+                model,
+                _utc_now(),
+                tool_name,
+                tool_calls_json,
+                correlation_id,
+            ),
         )
         await db.commit()
         return int(cur.lastrowid or 0)

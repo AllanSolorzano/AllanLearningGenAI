@@ -16,9 +16,12 @@ from . import agent_llm
 from . import agent_preparse
 from . import agent_resolve
 from . import database
+from . import kb_connector
 from . import memory_store
+from . import policy_engine
 from . import skill_catalog
 from .mcp_hub import get_default_hub, merge_mcp_health_into_backends
+from .orch_store import emit_event, insert_intents_from_ranked, insert_plan, insert_tasks_for_plan
 
 
 def build_orchestration_for_ui(
@@ -196,9 +199,11 @@ async def run_agent_turn(
     history_msgs: list[dict[str, Any]],
     use_mcp_tools: bool,
     system_policy: str | None = None,
+    root_message_id: int | None = None,
+    orchestration_correlation_id: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     sid = session_id.strip()
-    correlation_id = str(uuid.uuid4())
+    correlation_id = (orchestration_correlation_id or "").strip() or str(uuid.uuid4())
 
     async def log(phase: str, payload: dict[str, Any]) -> None:
         merged = {**payload, "correlation_id": correlation_id}
@@ -209,7 +214,17 @@ async def run_agent_turn(
         {
             "content_chars": len(user_message),
             "content_excerpt": user_message[:800],
+            "message_id": root_message_id,
         },
+    )
+    await emit_event(
+        sid,
+        "message_received",
+        {
+            "message_id": root_message_id,
+            "content_chars": len(user_message),
+        },
+        correlation_id=correlation_id,
     )
 
     hub = get_default_hub()
@@ -219,7 +234,28 @@ async def run_agent_turn(
     if has_tools:
         ollama_tools, _, mcp_server_health = await hub.list_ollama_tools_and_routes()
 
-    memory_hits = await memory_store.search_relevant_memory(sid, user_message, limit=8)
+    memory_hits = await memory_store.search_relevant_memory(
+        sid, user_message, limit=8, correlation_id=correlation_id
+    )
+    kb_pack = await kb_connector.query_local_kb(
+        sid,
+        user_message,
+        correlation_id=correlation_id,
+        filters={},
+    )
+    for c in kb_pack.get("chunks") or []:
+        if not isinstance(c, dict):
+            continue
+        memory_hits.append(
+            {
+                "memory_id": c.get("memory_id"),
+                "path": c.get("path"),
+                "title": c.get("title"),
+                "snippet": c.get("snippet"),
+                "scope": c.get("scope"),
+                "source": "kb_connector",
+            }
+        )
     await log(
         "session_bootstrap",
         {"memory_refs": memory_hits, "note": "correlation assigned; no tools executed"},
@@ -308,14 +344,32 @@ async def run_agent_turn(
     )
     await log("capability_resolve", cap)
 
+    sb0 = cap.get("selected_intent_bundle") or {}
+    sel_name = str(sb0.get("intent") or "").strip() or None
+    ranked = list(pipeline.get("layer5_ranked") or [])
+    sel_effective = sel_name or (
+        str(ranked[0].get("intent")).strip()
+        if ranked and isinstance(ranked[0], dict) and ranked[0].get("intent")
+        else None
+    )
+    await insert_intents_from_ranked(
+        sid,
+        correlation_id,
+        root_message_id,
+        ranked,
+        sel_effective,
+    )
+
     planner_input = cap.get("planner_input") or {}
     planner_input["normalized_user_request"] = normalized
+    planner_input["deterministic_parse"] = det
     planner_input["registered_execution_backends"] = merge_mcp_health_into_backends(
         hub.execution_backends_summary(),
         mcp_server_health,
     )
     planner_input["mcp_server_health"] = list(mcp_server_health)
     planner_input["available_skills"] = list(available_skills)
+    planner_input = await policy_engine.augment_planner_input(planner_input, cap)
 
     sb = cap.get("selected_intent_bundle") or {}
     primary_intent = str(sb.get("intent") or "").strip().lower()
@@ -376,7 +430,9 @@ async def run_agent_turn(
             "response_composed",
             {"reply_excerpt": reply[:2000], "via": "clarification_short_circuit"},
         )
-        await _maybe_write_memory(client, model, sid, user_message, reply, evidence, log)
+        await _maybe_write_memory(
+            client, model, sid, user_message, reply, evidence, log, correlation_id=correlation_id
+        )
         await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, {}, evidence)
         orch = build_orchestration_for_ui(
             correlation_id=correlation_id,
@@ -402,6 +458,26 @@ async def run_agent_turn(
     await log("planning", plan)
 
     plan_status = str(plan.get("plan_status") or "ready").lower()
+    plan_goal = str(plan.get("goal") or normalized[:240])
+    plan_row_id = await insert_plan(
+        sid,
+        correlation_id,
+        root_message_id,
+        1,
+        plan_goal,
+        plan,
+        status="blocked" if plan_status in ("blocked", "needs_clarification") else "active",
+    )
+    await insert_tasks_for_plan(
+        plan_row_id, sid, correlation_id, plan.get("steps") or []
+    )
+    await emit_event(
+        sid,
+        "plan_persisted",
+        {"plan_id": plan_row_id, "plan_status": plan_status},
+        correlation_id=correlation_id,
+    )
+
     if plan_status in ("blocked", "needs_clarification"):
         evidence = [
             {
@@ -435,7 +511,9 @@ async def run_agent_turn(
             "response_composed",
             {"reply_excerpt": reply[:2000], "via": f"plan_{plan_status}"},
         )
-        await _maybe_write_memory(client, model, sid, user_message, reply, evidence, log)
+        await _maybe_write_memory(
+            client, model, sid, user_message, reply, evidence, log, correlation_id=correlation_id
+        )
         await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, plan, evidence)
         orch = build_orchestration_for_ui(
             correlation_id=correlation_id,
@@ -474,6 +552,7 @@ async def run_agent_turn(
         correlation_id=correlation_id,
         plan=plan,
         has_remote_tools=has_tools,
+        plan_row_id=plan_row_id,
     )
     evidence.extend(step_evidence)
 
@@ -488,6 +567,8 @@ async def run_agent_turn(
         planner_input=planner_input,
         hub=hub,
         has_remote_tools=has_tools,
+        plan_row_id=plan_row_id,
+        root_message_id=root_message_id,
     )
 
     reply = await agent_llm.compose_final_reply(
@@ -500,7 +581,9 @@ async def run_agent_turn(
     )
     await log("response_composed", {"reply_excerpt": reply[:2000]})
 
-    await _maybe_write_memory(client, model, sid, user_message, reply, evidence, log)
+    await _maybe_write_memory(
+        client, model, sid, user_message, reply, evidence, log, correlation_id=correlation_id
+    )
 
     await _write_trace(sid, correlation_id, pre_d, intents_raw, cap, plan, evidence)
 
@@ -529,6 +612,8 @@ async def _maybe_write_memory(
     reply: str,
     evidence: list[dict[str, Any]],
     log,
+    *,
+    correlation_id: str,
 ) -> None:
     if os.environ.get("ALLAN_AGENT_MEMORY_WRITE", "1").strip().lower() in ("0", "false", "no"):
         return
@@ -546,12 +631,16 @@ async def _maybe_write_memory(
     if isinstance(tags, list) and tags:
         tag_line = "\n\nTags: " + ", ".join(str(x) for x in tags[:12])
     if summary:
-        await memory_store.write_memory_markdown(
+        rel = await memory_store.write_memory_markdown(
             sid,
             title,
             summary + tag_line,
+            correlation_id=correlation_id,
         )
-        await log("memory_writer", {"title": title, "stored": True})
+        await log(
+            "memory_writer",
+            {"title": title, "stored": bool(rel), "path": rel},
+        )
 
 
 async def _write_trace(

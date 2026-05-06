@@ -47,6 +47,7 @@ async def search_relevant_memory(
     query: str,
     *,
     limit: int = 8,
+    correlation_id: str | None = None,
 ) -> list[dict[str, str]]:
     clause = fts_clause_from_user_text(query)
     if not clause:
@@ -62,6 +63,15 @@ async def search_relevant_memory(
                 "snippet": snippet,
                 "scope": scope or "global",
             }
+        )
+    if correlation_id and out:
+        from .orch_store import log_memory_access
+
+        await log_memory_access(
+            session_id,
+            "memory_read",
+            correlation_id=correlation_id,
+            payload={"fts": True, "hits": len(out), "query_excerpt": query[:200]},
         )
     return out
 
@@ -81,16 +91,43 @@ async def write_memory_markdown(
     session_id: str | None,
     title: str,
     body: str,
-) -> str:
-    """Write ``data/memory/<session|global>/<uuid>.md``, index in SQLite + FTS."""
+    *,
+    correlation_id: str | None = None,
+) -> str | None:
+    """Write ``data/memory/<session|global>/<uuid>.md``, index in SQLite + FTS.
+
+    Returns ``None`` when a persisted memory-write policy blocks the body.
+    """
+    from .orch_store import emit_event, insert_memory_ref, list_policies_enabled, log_memory_access
+    from .policy_engine import memory_write_blocked
+
+    policies = await list_policies_enabled()
+    blocked, pname = memory_write_blocked((title + "\n" + body).lower(), policies)
+    if blocked:
+        sid = (session_id or "").strip() or "global"
+        await log_memory_access(
+            sid,
+            "memory_write_blocked",
+            correlation_id=correlation_id,
+            reason=pname,
+            payload={"title": title[:200]},
+        )
+        await emit_event(
+            sid,
+            "memory_write_blocked",
+            {"policy": pname, "title": title[:200]},
+            correlation_id=correlation_id,
+        )
+        return None
+
     sid_folder = session_id.strip() if session_id else "global"
     folder = memory_dir() / sid_folder
     folder.mkdir(parents=True, exist_ok=True)
     name = f"{uuid.uuid4().hex}.md"
     path = folder / name
     header = f"# {title.strip() or 'Note'}\n\n" if title.strip() else ""
-    full = header + body.strip()
-    path.write_text(full, encoding="utf-8")
+    full_body = header + body.strip()
+    path.write_text(full_body, encoding="utf-8")
     rel = f"{sid_folder}/{name}"
     mid = await database.insert_durable_memory_meta(session_id, rel, title.strip() or None)
     await database.insert_durable_memory_fts(
@@ -98,8 +135,24 @@ async def write_memory_markdown(
         session_id,
         rel,
         title.strip() or name,
-        full,
+        full_body,
     )
+    if session_id and correlation_id:
+        rid = await insert_memory_ref(
+            session_id,
+            "long_term_semantic",
+            rel,
+            {"memory_id": mid, "title": title[:500]},
+            correlation_id=correlation_id,
+            confidence=0.75,
+        )
+        await log_memory_access(
+            session_id.strip(),
+            "memory_write",
+            correlation_id=correlation_id,
+            memory_ref_id=rid,
+            payload={"path": rel},
+        )
     return rel
 
 

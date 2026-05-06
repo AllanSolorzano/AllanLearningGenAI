@@ -11,6 +11,8 @@ Environment (in addition to OLLAMA_* and MCP_DATABASE_PATH):
   ALLAN_AGENT_MEMORY_WRITE    Persist turn summaries to markdown + FTS (default: 1)
   ALLAN_MEMORY_DIR            Override durable memory root directory
   ALLAN_CAPABILITY_SCORE_MIN  Min intent→tool score before clarification (default: 0.18)
+  ALLAN_LOG_LEVEL             Logging level (default: INFO); see logging_config module
+  ALLAN_LOG_FILE / ALLAN_LOG_DIR / ALLAN_DISABLE_FILE_LOG  File log location and toggles
 
 HTTP (local dev, no auth):
 
@@ -18,6 +20,8 @@ HTTP (local dev, no auth):
   PUT  /mcp/remotes-config   Body ``{\"content\": \"...\"}`` writes file and reloads MCP hub
   GET  /mcp/remote-tools?refresh=true   Re-list tools from each configured server
   GET  /sessions/{id}/agent-trace       Phases + step events + handoffs (SQLite audit)
+  GET  /sessions/{id}/orchestration-state  Control-plane row counts (intents, plans, tasks, …)
+  GET  /logs/tail?lines=200             Recent application log lines (when file logging enabled)
 
 Run ``uv run allan-api``, then open ``/`` or ``/chat`` in the browser for the **allan_project** chat UI.
 """
@@ -37,6 +41,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 from . import database, ollama_service
+from .logging_config import configure_logging, get_log_file_path, tail_lines
+from .orch_store import list_orchestration_summary
 from .mcp_hub import (
     get_default_hub,
     read_remote_config_raw,
@@ -48,6 +54,7 @@ from .ollama_service import SessionNotFoundError
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
     await database.init_db()
     yield
 
@@ -77,7 +84,31 @@ async def chat_ui() -> str:
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok", "database": str(database.DB_PATH)}
+    log_path = get_log_file_path()
+    return {
+        "status": "ok",
+        "database": str(database.DB_PATH),
+        "log_file": str(log_path) if log_path else None,
+    }
+
+
+class LogTailOut(BaseModel):
+    path: str | None = None
+    lines: list[str] = Field(default_factory=list)
+
+
+@app.get("/logs/tail", response_model=LogTailOut)
+async def logs_tail(
+    lines: Annotated[int, Query(ge=1, le=500)] = 150,
+) -> LogTailOut:
+    """Return the last ``lines`` entries from the rotating app log file (local dev; no auth)."""
+    path = get_log_file_path()
+    if path is None or not path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="File logging is disabled (ALLAN_DISABLE_FILE_LOG) or the log file is not present yet.",
+        )
+    return LogTailOut(path=str(path.resolve()), lines=tail_lines(path, lines))
 
 
 class McpRemotesConfigPut(BaseModel):
@@ -167,6 +198,13 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest) -> ChatResponse:
+    ollama_service.log_chat_request(
+        session_id=body.session_id,
+        model=body.model,
+        use_mcp_tools=body.use_mcp_tools,
+        use_agent_pipeline=body.use_agent_pipeline,
+        message_preview=body.message,
+    )
     try:
         turn = await ollama_service.chat_with_optional_session(
             message=body.message,
@@ -263,6 +301,15 @@ class AgentTraceBundle(BaseModel):
     turn_logs: list[AgentTurnLogOut]
     step_events: list[AgentStepEventOut]
     handoffs: list[AgentHandoffOut]
+
+
+@app.get("/sessions/{session_id}/orchestration-state")
+async def get_orchestration_state(session_id: str) -> dict[str, Any]:
+    """Counts from normalized control-plane tables (intents, plans, tasks, tool_calls, kb, events, memory audit)."""
+    sid = session_id.strip()
+    if not await database.session_exists(sid):
+        raise HTTPException(status_code=404, detail="Unknown session")
+    return await list_orchestration_summary(sid)
 
 
 @app.get("/sessions/{session_id}/agent-trace", response_model=AgentTraceBundle)
@@ -365,6 +412,7 @@ async def append_message(session_id: str, body: MessageAppend) -> dict[str, int]
 
 
 def serve() -> None:
+    configure_logging()
     host = os.environ.get("API_HOST", "127.0.0.1")
     port = int(os.environ.get("API_PORT", "8000"))
     import uvicorn

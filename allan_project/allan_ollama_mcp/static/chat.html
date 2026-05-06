@@ -20,6 +20,13 @@
       --warn-border: rgba(250, 204, 21, 0.55);
       --warn-bg: rgba(250, 204, 21, 0.08);
       --sidebar-w: 15.5rem;
+      --log-panel-min: 17rem;
+      --log-panel-max: min(40vw, 26rem);
+      --intent: #a78bfa;
+      --planner: #38bdf8;
+      --executor: #4ade80;
+      --verifier: #fbbf24;
+      --system: #94a3b8;
     }
     * { box-sizing: border-box; }
     html, body { height: 100%; margin: 0; }
@@ -108,13 +115,135 @@
       text-decoration: none;
     }
     .side-nav a:hover, .side-nav button:hover { color: var(--accent); background: rgba(56, 189, 248, 0.06); }
-    /* ——— Main column ——— */
+    /* ——— Main + live logs row ——— */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-width: 0;
+      min-height: 100vh;
+    }
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
       min-width: 0;
       min-height: 100vh;
+    }
+    .live-logs {
+      flex: 0 0 var(--log-panel-max);
+      min-width: var(--log-panel-min);
+      max-width: var(--log-panel-max);
+      background: #0a0d11;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+    .live-logs.hidden { display: none !important; }
+    .live-logs-header {
+      padding: 0.5rem 0.55rem 0.4rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .live-logs-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+    .live-logs-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.35rem;
+    }
+    .live-logs-toolbar .live-tab {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .live-logs-toolbar .live-tab:hover { color: var(--text); }
+    .live-logs-toolbar .live-tab.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.45);
+      color: var(--accent);
+    }
+    .live-logs-toolbar .icon-btn {
+      margin-left: auto;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .live-logs-toolbar .icon-btn:hover { color: var(--text); background: var(--surface2); }
+    .live-logs-toolbar .icon-btn.pinned { color: var(--accent); }
+    .live-logs-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.45rem 0.5rem 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      line-height: 1.35;
+    }
+    .live-logs-body.hidden { display: none; }
+    .live-log-line {
+      margin-bottom: 0.45rem;
+      padding: 0.4rem 0.45rem 0.45rem 0.5rem;
+      background: var(--surface2);
+      border-radius: 6px;
+      border-left: 3px solid var(--border);
+      word-break: break-word;
+    }
+    .live-log-line.ch-intent { border-left-color: var(--intent); }
+    .live-log-line.ch-planner { border-left-color: var(--planner); }
+    .live-log-line.ch-executor { border-left-color: var(--executor); }
+    .live-log-line.ch-verifier { border-left-color: var(--verifier); }
+    .live-log-line.ch-system { border-left-color: var(--system); }
+    .live-log-line .live-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem;
+      margin-bottom: 0.25rem;
+    }
+    .live-log-line .ts { color: #64748b; font-size: 0.65rem; }
+    .live-log-line .tag {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 0.12rem 0.38rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .live-log-line .tag.t-intent { background: rgba(167, 139, 250, 0.2); color: #ddd6fe; }
+    .live-log-line .tag.t-planner { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+    .live-log-line .tag.t-executor { background: rgba(74, 222, 128, 0.15); color: #86efac; }
+    .live-log-line .tag.t-verifier { background: rgba(251, 191, 36, 0.15); color: #fde047; }
+    .live-log-line .tag.t-system { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+    .live-log-line .phase { color: #94a3b8; font-size: 0.62rem; }
+    .live-log-line pre {
+      margin: 0.25rem 0 0;
+      padding: 0.35rem 0.4rem;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow-x: auto;
+      max-height: 14rem;
+      font-size: 0.62rem;
+      white-space: pre-wrap;
+    }
+    .controls button.sm.logs-on {
+      background: rgba(56, 189, 248, 0.25);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: var(--accent);
     }
     .top-header {
       padding: 0.65rem 1rem 0.5rem;
@@ -485,6 +614,7 @@
     </nav>
   </aside>
 
+  <div class="main-wrap">
   <div class="main">
     <header class="top-header">
       <div class="header-row">
@@ -505,13 +635,15 @@
         <label class="chk" title="Loads the MCP tool registry for this chat; required for the planner to run remote tools. Independent of Intent plan."><input type="checkbox" id="useMcp" /> MCP tools</label>
         <label class="chk" title="Structured intent → plan → verify → reply. Does not load tools unless MCP tools is also enabled."><input type="checkbox" id="useAgent" /> Intent plan</label>
         <button type="button" class="sm" id="btnPullHistory">Reload history</button>
+        <button type="button" class="sm" id="btnLiveLogs" title="Open right panel: agent SQLite trace + server log tail">LOGS</button>
         <button type="button" class="sm" id="btnCommands">Commands</button>
       </div>
       <div id="commandsPopover" role="dialog" aria-label="Shortcuts">
         <strong style="color:var(--text)">Shortcuts</strong><br />
         Enter — send · Shift+Enter — newline<br />
         <kbd>/docs</kbd> — API reference (link in sidebar)<br />
-        Enable <b>Intent plan</b> for orchestration trace on each reply.
+        Enable <b>Intent plan</b> for orchestration trace on each reply.<br />
+        <b>LOGS</b> — right panel: live Agent trace (SQLite) + Server log tail.
       </div>
     </header>
 
@@ -569,6 +701,24 @@
     </footer>
   </div>
 
+  <aside id="liveLogsPanel" class="live-logs hidden" aria-label="Live logs">
+    <div class="live-logs-header">
+      <div class="live-logs-title">LIVE LOGS</div>
+      <div class="live-logs-toolbar">
+        <button type="button" class="live-tab active" id="liveLogsTabAgent" data-tab="agent">Agent</button>
+        <button type="button" class="live-tab" id="liveLogsTabServer" data-tab="server">Server</button>
+        <span style="flex:1"></span>
+        <button type="button" class="icon-btn" id="liveLogsPin" title="Pin: close button is disabled while pinned">📌</button>
+        <button type="button" class="icon-btn" id="liveLogsCopy" title="Copy visible tab">Copy</button>
+        <button type="button" class="icon-btn" id="liveLogsDownload" title="Download visible tab">Save</button>
+        <button type="button" class="icon-btn" id="liveLogsClose" title="Hide panel">✕</button>
+      </div>
+    </div>
+    <div id="liveLogsBodyAgent" class="live-logs-body" aria-live="polite"></div>
+    <div id="liveLogsBodyServer" class="live-logs-body hidden"></div>
+  </aside>
+  </div>
+
   <script>
     const LS_KEY = "allan_project_session_id";
     const LS_MODEL = "allan_project_model";
@@ -608,11 +758,29 @@
     const btnCommands = document.getElementById("btnCommands");
     const commandsPopover = document.getElementById("commandsPopover");
     const btnRefreshModels = document.getElementById("btnRefreshModels");
+    const btnLiveLogs = document.getElementById("btnLiveLogs");
+    const liveLogsPanel = document.getElementById("liveLogsPanel");
+    const liveLogsTabAgent = document.getElementById("liveLogsTabAgent");
+    const liveLogsTabServer = document.getElementById("liveLogsTabServer");
+    const liveLogsBodyAgent = document.getElementById("liveLogsBodyAgent");
+    const liveLogsBodyServer = document.getElementById("liveLogsBodyServer");
+    const liveLogsPin = document.getElementById("liveLogsPin");
+    const liveLogsCopy = document.getElementById("liveLogsCopy");
+    const liveLogsDownload = document.getElementById("liveLogsDownload");
+    const liveLogsClose = document.getElementById("liveLogsClose");
+
+    const LS_LIVE_LOGS_OPEN = "allan_project_live_logs_open";
+    const LS_LIVE_LOGS_PIN = "allan_project_live_logs_pin";
 
     let sessionId = null;
     let busy = false;
     let messageOrdinal = 0;
     let lastDebugPayload = null;
+    let liveLogsPollId = null;
+    let liveLogsTab = "agent";
+    let lastAgentTraceBundle = null;
+    let lastServerLogLines = [];
+    let liveLogsAgentStickBottom = true;
 
     function persistSessionId() {
       if (sessionId) localStorage.setItem(LS_KEY, sessionId);
@@ -624,6 +792,314 @@
       d.textContent = s;
       return d.innerHTML;
     }
+
+    function liveLogsPinned() {
+      return localStorage.getItem(LS_LIVE_LOGS_PIN) === "1";
+    }
+
+    function setLiveLogsPinned(on) {
+      if (on) localStorage.setItem(LS_LIVE_LOGS_PIN, "1");
+      else localStorage.removeItem(LS_LIVE_LOGS_PIN);
+      liveLogsPin.classList.toggle("pinned", on);
+      liveLogsClose.disabled = on;
+      liveLogsClose.style.opacity = on ? "0.35" : "";
+    }
+
+    function phaseChannel(phase) {
+      const p = String(phase || "").toLowerCase();
+      const intentish = [
+        "preparse",
+        "memory_enriched",
+        "capability_resolve",
+        "intent_contract",
+        "intent_discovery",
+        "intent_layer1",
+        "intent_layer2",
+        "intent_layer3",
+        "intent_layer4",
+        "intent_layer5",
+        "message_received",
+        "session_bootstrap",
+      ];
+      if (p.startsWith("intent") || intentish.includes(p)) {
+        return { line: "ch-intent", tag: "INTENT", tagCls: "t-intent" };
+      }
+      if (p === "planning" || p === "replanner") {
+        return { line: "ch-planner", tag: "PLANNER", tagCls: "t-planner" };
+      }
+      if (p === "executor_step" || p.indexOf("execute") !== -1) {
+        return { line: "ch-executor", tag: "EXECUTOR", tagCls: "t-executor" };
+      }
+      if (p === "verifier") {
+        return { line: "ch-verifier", tag: "VERIFIER", tagCls: "t-verifier" };
+      }
+      if (p === "handoff_recorded") {
+        return { line: "ch-system", tag: "HANDOFF", tagCls: "t-system" };
+      }
+      if (p === "response_composed" || p === "memory_writer") {
+        return { line: "ch-planner", tag: "RESPONSE", tagCls: "t-planner" };
+      }
+      return { line: "ch-system", tag: "TRACE", tagCls: "t-system" };
+    }
+
+    function fmtLiveTime(iso) {
+      try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return String(iso || "");
+        const pad = (n, w) => String(n).padStart(w, "0");
+        return (
+          pad(d.getHours(), 2) +
+          ":" +
+          pad(d.getMinutes(), 2) +
+          ":" +
+          pad(d.getSeconds(), 2) +
+          "." +
+          pad(d.getMilliseconds(), 3)
+        );
+      } catch (_) {
+        return String(iso || "");
+      }
+    }
+
+    function mergeAgentTimeline(bundle) {
+      const rows = [];
+      if (!bundle) return rows;
+      for (const t of bundle.turn_logs || []) {
+        rows.push({
+          t: new Date(t.created_at).getTime(),
+          kind: "turn",
+          d: t,
+        });
+      }
+      for (const e of bundle.step_events || []) {
+        rows.push({
+          t: new Date(e.created_at).getTime(),
+          kind: "step",
+          d: e,
+        });
+      }
+      for (const h of bundle.handoffs || []) {
+        rows.push({
+          t: new Date(h.created_at).getTime(),
+          kind: "handoff",
+          d: h,
+        });
+      }
+      rows.sort((a, b) => a.t - b.t);
+      return rows;
+    }
+
+    function renderLiveAgent(bundle) {
+      if (!sessionId) {
+        liveLogsBodyAgent.textContent = "Start or select a chat session to load the SQLite agent trace.";
+        return;
+      }
+      if (!bundle) {
+        liveLogsBodyAgent.textContent =
+          "No trace loaded yet. Enable Intent plan, send a message, or open Agent trace (JSON) after a reply.";
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      const merged = mergeAgentTimeline(bundle);
+      if (merged.length === 0) {
+        const p = document.createElement("p");
+        p.style.color = "var(--muted)";
+        p.textContent =
+          "No agent_turn_log rows for this session yet — orchestration writes here during Intent plan turns.";
+        frag.appendChild(p);
+      }
+      for (const row of merged) {
+        const wrap = document.createElement("div");
+        wrap.className = "live-log-line";
+        const meta = document.createElement("div");
+        meta.className = "live-meta";
+        if (row.kind === "turn") {
+          const t = row.d;
+          const ch = phaseChannel(t.phase);
+          wrap.classList.add(ch.line);
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(t.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag " + ch.tagCls;
+          tag.textContent = ch.tag;
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent = t.phase || "";
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(t.payload || {}, null, 2);
+          wrap.appendChild(pre);
+        } else if (row.kind === "step") {
+          const e = row.d;
+          wrap.classList.add("ch-executor");
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(e.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag t-executor";
+          tag.textContent = "EXECUTOR";
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent =
+            (e.step_id || "") +
+            " · " +
+            (e.state || "") +
+            (e.tool_name ? " · " + e.tool_name : "");
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          const detail = e.detail && typeof e.detail === "object" ? e.detail : {};
+          pre.textContent = JSON.stringify(
+            {
+              correlation_id: e.correlation_id,
+              latency_ms: e.latency_ms,
+              detail,
+            },
+            null,
+            2
+          );
+          wrap.appendChild(pre);
+        } else {
+          const h = row.d;
+          wrap.classList.add("ch-system");
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(h.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag t-system";
+          tag.textContent = "HANDOFF";
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent = h.status || "";
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(h.detail || {}, null, 2);
+          wrap.appendChild(pre);
+        }
+        frag.appendChild(wrap);
+      }
+      const stick = liveLogsAgentStickBottom;
+      const prevScroll = liveLogsBodyAgent.scrollTop;
+      const prevMax = liveLogsBodyAgent.scrollHeight - liveLogsBodyAgent.clientHeight;
+      liveLogsBodyAgent.innerHTML = "";
+      liveLogsBodyAgent.appendChild(frag);
+      if (stick || prevMax - prevScroll < 8) {
+        liveLogsBodyAgent.scrollTop = liveLogsBodyAgent.scrollHeight;
+      }
+    }
+
+    function renderLiveServer(lines) {
+      liveLogsBodyServer.textContent = (lines || []).join("\n") || "(empty — file logging may be disabled)";
+    }
+
+    async function refreshLiveLogsOnce() {
+      if (!liveLogsPanel || liveLogsPanel.classList.contains("hidden")) return;
+      if (sessionId) {
+        try {
+          const r = await fetch(
+            "/sessions/" + encodeURIComponent(sessionId) + "/agent-trace?log_limit=200&event_limit=250&handoff_limit=100"
+          );
+          const data = await r.json().catch(() => ({}));
+          if (r.ok) {
+            lastAgentTraceBundle = data;
+            if (liveLogsTab === "agent") renderLiveAgent(data);
+          } else if (r.status === 404) {
+            lastAgentTraceBundle = null;
+            if (liveLogsTab === "agent") {
+              liveLogsBodyAgent.textContent = "Session not found or no access.";
+            }
+          } else {
+            lastAgentTraceBundle = null;
+            if (liveLogsTab === "agent") {
+              liveLogsBodyAgent.textContent =
+                "Agent trace error: " + (data.detail ? JSON.stringify(data.detail) : r.statusText);
+            }
+          }
+        } catch (e) {
+          if (liveLogsTab === "agent") {
+            liveLogsBodyAgent.textContent = "Agent trace fetch failed: " + String(e.message || e);
+          }
+        }
+      } else {
+        lastAgentTraceBundle = null;
+        if (liveLogsTab === "agent") renderLiveAgent(null);
+      }
+      try {
+        const r = await fetch("/logs/tail?lines=180");
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && Array.isArray(data.lines)) {
+          lastServerLogLines = data.lines;
+          if (liveLogsTab === "server") renderLiveServer(data.lines);
+        } else {
+          lastServerLogLines = [];
+          if (liveLogsTab === "server") {
+            renderLiveServer([
+              r.status === 404
+                ? "Server file log unavailable (set file logging or wait for first log line)."
+                : "GET /logs/tail failed: " + (data.detail || r.statusText),
+            ]);
+          }
+        }
+      } catch (e) {
+        lastServerLogLines = [];
+        if (liveLogsTab === "server") {
+          renderLiveServer(["/logs/tail error: " + String(e.message || e)]);
+        }
+      }
+    }
+
+    function startLiveLogsPoll() {
+      if (liveLogsPollId) return;
+      void refreshLiveLogsOnce();
+      liveLogsPollId = setInterval(() => {
+        void refreshLiveLogsOnce();
+      }, 900);
+    }
+
+    function stopLiveLogsPoll() {
+      if (liveLogsPollId) {
+        clearInterval(liveLogsPollId);
+        liveLogsPollId = null;
+      }
+    }
+
+    function setLiveLogsTab(tab) {
+      liveLogsTab = tab === "server" ? "server" : "agent";
+      liveLogsTabAgent.classList.toggle("active", liveLogsTab === "agent");
+      liveLogsTabServer.classList.toggle("active", liveLogsTab === "server");
+      liveLogsBodyAgent.classList.toggle("hidden", liveLogsTab !== "agent");
+      liveLogsBodyServer.classList.toggle("hidden", liveLogsTab !== "server");
+      void refreshLiveLogsOnce();
+    }
+
+    function setLiveLogsOpen(open) {
+      if (!liveLogsPanel) return;
+      liveLogsPanel.classList.toggle("hidden", !open);
+      btnLiveLogs.classList.toggle("logs-on", !!open);
+      if (open) {
+        localStorage.setItem(LS_LIVE_LOGS_OPEN, "1");
+        startLiveLogsPoll();
+        liveLogsAgentStickBottom = true;
+      } else {
+        localStorage.removeItem(LS_LIVE_LOGS_OPEN);
+        stopLiveLogsPoll();
+      }
+    }
+
+    liveLogsBodyAgent.addEventListener("scroll", () => {
+      const el = liveLogsBodyAgent;
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      liveLogsAgentStickBottom = dist < 12;
+    });
 
     function appendBubble(role, text) {
       const div = document.createElement("div");
@@ -1104,6 +1580,50 @@
       void loadModelsFromServer();
     });
 
+    btnLiveLogs.addEventListener("click", () => {
+      const open = liveLogsPanel.classList.contains("hidden");
+      setLiveLogsOpen(open);
+    });
+    liveLogsTabAgent.addEventListener("click", () => setLiveLogsTab("agent"));
+    liveLogsTabServer.addEventListener("click", () => setLiveLogsTab("server"));
+    liveLogsPin.addEventListener("click", () => {
+      setLiveLogsPinned(!liveLogsPinned());
+    });
+    liveLogsClose.addEventListener("click", () => {
+      if (liveLogsPinned()) return;
+      setLiveLogsOpen(false);
+    });
+    liveLogsCopy.addEventListener("click", async () => {
+      let text = "";
+      if (liveLogsTab === "agent") {
+        text = lastAgentTraceBundle
+          ? JSON.stringify(lastAgentTraceBundle, null, 2)
+          : liveLogsBodyAgent.innerText;
+      } else {
+        text = (lastServerLogLines || []).join("\n");
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        appendMeta("Live logs: copied to clipboard.");
+      } catch (_) {
+        appendMeta("Live logs: copy failed (browser may block clipboard).");
+      }
+    });
+    liveLogsDownload.addEventListener("click", () => {
+      const agent = liveLogsTab === "agent";
+      const body = agent
+        ? JSON.stringify(lastAgentTraceBundle || {}, null, 2)
+        : (lastServerLogLines || []).join("\n");
+      const blob = new Blob([body], {
+        type: agent ? "application/json" : "text/plain;charset=utf-8",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = agent ? "allan-agent-trace.json" : "allan-server.log";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
     document.getElementById("openSettings").addEventListener("click", () => {
       settingsPanel.open = true;
       settingsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1169,6 +1689,7 @@
     });
 
     async function init() {
+      setLiveLogsPinned(liveLogsPinned());
       if (localStorage.getItem(LS_MCP) === "1") useMcpEl.checked = true;
       if (localStorage.getItem(LS_AGENT) === "1") useAgentEl.checked = true;
       const savedModel = localStorage.getItem(LS_MODEL);
@@ -1199,6 +1720,10 @@
       } catch (e) {
         appendBubble("error", String(e.message || e));
         await newChat();
+      } finally {
+        if (localStorage.getItem(LS_LIVE_LOGS_OPEN) === "1") {
+          setLiveLogsOpen(true);
+        }
       }
     }
 

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Any
 
@@ -12,8 +14,33 @@ import httpx
 from . import database
 from .mcp_hub import get_default_hub
 
+logger = logging.getLogger(__name__)
+
 OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+
+
+def log_chat_request(
+    *,
+    session_id: str | None,
+    model: str | None,
+    use_mcp_tools: bool,
+    use_agent_pipeline: bool,
+    message_preview: str,
+) -> None:
+    """Structured INFO log for HTTP / MCP chat entry (message truncated)."""
+    sid = (session_id or "").strip() or None
+    preview = (message_preview or "").replace("\n", " ").strip()
+    if len(preview) > 120:
+        preview = preview[:117] + "..."
+    logger.info(
+        "chat request session_id=%r model=%r mcp_tools=%s agent=%s preview=%r",
+        sid,
+        (model or "").strip() or None,
+        use_mcp_tools,
+        use_agent_pipeline,
+        preview,
+    )
 
 
 def _hub():
@@ -132,6 +159,7 @@ async def _chat_with_tools_loop(
                     args = _coerce_tool_arguments(raw_args)
                     body = await hub.invoke_tool(str(name), args)
                 except Exception as exc:
+                    logger.warning("MCP tool %r failed: %s", name, exc, exc_info=logger.isEnabledFor(logging.DEBUG))
                     body = f"MCP tool error ({name}): {exc}"
                 messages.append(
                     {"role": "tool", "tool_name": str(name), "content": body}
@@ -205,8 +233,13 @@ async def chat_with_optional_session(
     messages_any.extend(dict(m) for m in history_msgs)
     messages_any.append({"role": "user", "content": message})
 
+    user_message_id: int | None = None
+    orch_corr: str | None = None
     if sid:
-        await database.append_message(sid, "user", message, None)
+        orch_corr = str(uuid.uuid4())
+        user_message_id = await database.append_message(
+            sid, "user", message, None, correlation_id=orch_corr
+        )
 
     orchestration: dict[str, Any] | None = None
     async with httpx.AsyncClient() as client:
@@ -224,6 +257,8 @@ async def chat_with_optional_session(
                 history_msgs=history_for_agent,
                 use_mcp_tools=use_mcp_tools,
                 system_policy=system,
+                root_message_id=user_message_id,
+                orchestration_correlation_id=orch_corr,
             )
         elif use_tools and tools:
             reply = await _chat_with_tools_loop(
@@ -238,7 +273,17 @@ async def chat_with_optional_session(
             plain = _messages_for_non_tool_model(messages_any)
             reply = await post_chat(client, use_model, plain)
 
+    if sid and user_message_id is None:
+        await database.append_message(sid, "user", message, None)
+
     if sid:
         await database.append_message(sid, "assistant", reply, use_model)
 
+    logger.info(
+        "chat complete session_id=%r model=%r reply_chars=%s agent_trace=%s",
+        sid or None,
+        use_model,
+        len(reply),
+        orchestration is not None,
+    )
     return ChatTurnResult(reply=reply, orchestration=orchestration)

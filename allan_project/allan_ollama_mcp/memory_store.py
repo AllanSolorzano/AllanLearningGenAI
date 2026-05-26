@@ -137,6 +137,12 @@ async def write_memory_markdown(
         title.strip() or name,
         full_body,
     )
+    try:
+        from .rag.hybrid_search import invalidate_chunk_cache
+
+        invalidate_chunk_cache(session_id)
+    except ImportError:
+        pass
     if session_id and correlation_id:
         rid = await insert_memory_ref(
             session_id,

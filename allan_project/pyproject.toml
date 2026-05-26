@@ -12,6 +12,17 @@ dependencies = [
     "uvicorn[standard]>=0.45.0",
 ]
 
+[project.optional-dependencies]
+rag = [
+    "numpy>=1.26.0",
+    "sentence-transformers>=3.0.0",
+]
+rag-full = [
+    "allan-ollama-mcp[rag]",
+    "chromadb>=0.5.0",
+    "tiktoken>=0.7.0",
+]
+
 [project.scripts]
 ollama-mcp-server = "allan_ollama_mcp.server:main"
 allan-api = "allan_ollama_mcp.app:serve"

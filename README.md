@@ -32,6 +32,10 @@ This repo takes you from "I've used ChatGPT" to "I understand how this works and
 | 02 | [Prompt Engineering](./sessions/02_prompt_engineering/) | `anthropic` | Yes | ✅ Available |
 | 03 | [Local LLMs with Ollama](./sessions/03_local_llms_ollama/) | `ollama`, `requests` | No (local) | ✅ Available |
 | 04 | [Tool Calling (Function Calling)](./sessions/04_tool_calling_function_calling/) | `openai`, `ollama` | Depends on provider | ✅ Available |
+| 05 | [MCP Servers](./sessions/05_mcp_servers/) | `fastmcp`, `mcp` | Optional | ✅ Available |
+| 07 | [Retrieval-Augmented Generation](./sessions/07_retrieval_augmented_generation/) | `sentence-transformers`, `chromadb` | No (core labs) | ✅ Available |
+
+**Allan project:** hybrid RAG over durable memory — see [allan_project/README.md](./allan_project/README.md).
 
 ---
 

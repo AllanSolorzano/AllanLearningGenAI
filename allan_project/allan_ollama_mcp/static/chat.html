@@ -595,6 +595,83 @@
       box-shadow: 0 8px 28px rgba(0,0,0,0.45);
     }
     #commandsPopover.open { display: block; }
+    /* ——— System Architecture modal ——— */
+    .arch-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .arch-modal-overlay.open { display: flex; }
+    .arch-modal {
+      width: min(1080px, 96vw);
+      max-height: 86vh;
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .arch-modal-header {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      z-index: 1;
+    }
+    .arch-modal-title { font-weight: 700; font-size: 1.05rem; }
+    .arch-modal-subtitle { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
+    .arch-modal-body { padding: 0.75rem 0.85rem 1rem; }
+    .arch-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .arch-tab {
+      font-size: 0.74rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .arch-tab.active {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.55);
+      color: var(--accent);
+    }
+    .arch-tabcontent { display: none; }
+    .arch-tabcontent.active { display: block; }
+    .arch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+    .arch-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.7rem;
+      min-height: 7.5rem;
+    }
+    .arch-card h4 { margin: 0 0 0.35rem 0; font-size: 0.82rem; color: var(--text); }
+    .arch-card p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+    .arch-card ul { margin: 0.35rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+    .arch-step { color: var(--muted); font-size: 0.78rem; line-height: 1.45; margin: 0.25rem 0; }
+    .arch-kv { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+    .arch-pill {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(255,255,255,0.02);
+    }
+    @media (max-width: 980px) { .arch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .arch-grid { grid-template-columns: 1fr; } }
+
     .top-header { position: relative; }
   </style>
 </head>
@@ -606,6 +683,7 @@
       <ul class="session-list" id="sessionList" aria-label="Recent chats"></ul>
     </div>
     <nav class="side-nav">
+      <button type="button" id="btnSystemArch" title="System architecture (FastAPI, Ollama, SQLite, MCP, RAG)">System architecture</button>
       <button type="button" id="openSettings">Settings</button>
       <a href="/health" target="_blank" rel="noopener">This machine</a>
       <button type="button" id="scrollToModels">Ollama &amp; models</button>
@@ -719,6 +797,190 @@
   </aside>
   </div>
 
+  <div id="archModal" class="arch-modal-overlay" role="dialog" aria-label="System architecture">
+    <div class="arch-modal" role="document">
+      <div class="arch-modal-header">
+        <div>
+          <div class="arch-modal-title">System Architecture</div>
+          <div class="arch-modal-subtitle">FastAPI + Ollama + SQLite + MCP + (optional) RAG</div>
+        </div>
+        <button type="button" class="icon-btn" id="archCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="arch-modal-body">
+        <div class="arch-tabs" aria-label="Architecture tabs">
+          <button type="button" class="arch-tab active" data-tab="overview">Overview</button>
+          <button type="button" class="arch-tab" data-tab="request-flow">Request Flow</button>
+          <button type="button" class="arch-tab" data-tab="memory">Memory &amp; Persistence</button>
+          <button type="button" class="arch-tab" data-tab="tech">Tech Stack</button>
+        </div>
+
+        <div class="arch-tabcontent active" data-tab="overview">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>Browser UI</h4>
+              <p>
+                `static/chat.html` sends `POST /chat` and renders messages from SQLite.
+                Enable flags: `MCP tools` and `Intent plan`.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>API + persistence</h4>
+              <p>
+                `allan_ollama_mcp/app.py` exposes `/chat`, `/sessions`, `/health`, and agent trace endpoints.
+                Chat history + durable memory are stored in `data/app.db`.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>LLM + orchestration</h4>
+              <p>
+                `ollama_service.py` handles the chat/tool loop.
+                With `Intent plan`, `agent_orchestrator.py` runs intent->plan->execute->verify->reply, and writes traces.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="request-flow">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>1) User -> API</h4>
+              <p class="arch-step">UI sends `POST /chat` with `session_id`, `history_limit`, and feature flags.</p>
+              <p class="arch-step">If `session_id` is set, API loads prior messages from SQLite.</p>
+            </div>
+            <div class="arch-card">
+              <h4>2) Retrieval (optional)</h4>
+              <p class="arch-step">
+                `kb_connector.py` queries durable memory via SQLite FTS5.
+              </p>
+              <p class="arch-step">
+                If `ALLAN_RAG_HYBRID=1`, it fuses BM25 + embeddings (RRF) over chunked memory.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>3) Tools / Agent plan</h4>
+              <p class="arch-step">
+                `MCP tools` lets a tools-capable Ollama model call MCP tools.
+              </p>
+              <p class="arch-step">
+                `Intent plan` runs: preparse -> intent discovery -> capability+policy -> plan graph -> execute/verify -> compose -> memory write.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>4) Persist + inspect</h4>
+              <p class="arch-step">
+                Every chat turn is written to `chat_messages` when `session_id` is present.
+              </p>
+              <p class="arch-step">
+                Browser can open SQLite audit via `GET /sessions/{id}/agent-trace`.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="memory">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>Short-term Memory</h4>
+              <p>
+                Recent conversation context loaded per turn from `chat_messages` (bounded by `history_limit`, default 40).
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">SQLite</span>
+                <span class="arch-pill">bounded context</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Episodic Memory</h4>
+              <p>
+                When `ALLAN_AGENT_MEMORY_WRITE=1`, the agent summarizes durable lessons and stores them as markdown in `data/memory/<session|global>/`.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">markdown</span>
+                <span class="arch-pill">FTS-indexed</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Long-term Memory</h4>
+              <p>
+                Durable memory lives in SQLite + FTS5 (`durable_memory_fts`) with optional hybrid RAG (BM25 + embeddings + RRF) over chunked memory.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">FTS5</span>
+                <span class="arch-pill">hybrid RAG</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Reflective Memory</h4>
+              <p>
+                Turn-by-turn pipeline traces written to `data/traces/<session_id>/turn_*.md` when `ALLAN_AGENT_TRACE_MD=1`.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">trace markdown</span>
+                <span class="arch-pill">auditability</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Procedural Memory</h4>
+              <p>
+                The orchestration pipeline itself is persisted: intents, plans, tasks, tool calls, and KB queries in `orchestration_*` tables.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">pipeline state</span>
+                <span class="arch-pill">evidence bundle</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Memory Governance</h4>
+              <p>
+                Policies in `orchestration_policies` can block unsafe memory writes (e.g., secrets) and require approval for certain state changes.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">guardrails</span>
+                <span class="arch-pill">audit log</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="tech">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>Web</h4>
+              <p>Static UI: `static/chat.html` with live SQLite trace panel.</p>
+            </div>
+            <div class="arch-card">
+              <h4>Backend</h4>
+              <p>FastAPI service (`allan_ollama_mcp/app.py`) with session + agent endpoints.</p>
+            </div>
+            <div class="arch-card">
+              <h4>LLM</h4>
+              <p>Ollama HTTP API for chat, plus optional tool calling (tools-capable model).</p>
+            </div>
+            <div class="arch-card">
+              <h4>Storage</h4>
+              <p>
+                SQLite database (`data/app.db`) with FTS5 for durable memory.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>RAG (optional)</h4>
+              <p>
+                `ALLAN_RAG_HYBRID=1` enables chunked hybrid retrieval using `sentence-transformers` and local BM25, fused with RRF.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>MCP tools</h4>
+              <p>
+                MCP stdio servers configured via `mcp_remote_servers.json` and exposed through the Ollama tool registry.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <script>
     const LS_KEY = "allan_project_session_id";
     const LS_MODEL = "allan_project_model";
@@ -768,6 +1030,12 @@
     const liveLogsCopy = document.getElementById("liveLogsCopy");
     const liveLogsDownload = document.getElementById("liveLogsDownload");
     const liveLogsClose = document.getElementById("liveLogsClose");
+
+    const btnSystemArch = document.getElementById("btnSystemArch");
+    const archModal = document.getElementById("archModal");
+    const archCloseBtn = document.getElementById("archCloseBtn");
+    const archTabButtons = Array.from(document.querySelectorAll(".arch-tab"));
+    const archTabContents = Array.from(document.querySelectorAll(".arch-tabcontent"));
 
     const LS_LIVE_LOGS_OPEN = "allan_project_live_logs_open";
     const LS_LIVE_LOGS_PIN = "allan_project_live_logs_pin";
@@ -1593,6 +1861,40 @@
       if (liveLogsPinned()) return;
       setLiveLogsOpen(false);
     });
+
+    function setArchTab(tab) {
+      for (const el of archTabContents) {
+        el.classList.toggle("active", el.dataset.tab === tab);
+      }
+      for (const b of archTabButtons) {
+        b.classList.toggle("active", b.dataset.tab === tab);
+      }
+    }
+
+    btnSystemArch.addEventListener("click", () => {
+      if (!archModal) return;
+      archModal.classList.add("open");
+    });
+
+    archCloseBtn.addEventListener("click", () => {
+      if (!archModal) return;
+      archModal.classList.remove("open");
+    });
+
+    archModal.addEventListener("click", (ev) => {
+      if (ev.target === archModal) archModal.classList.remove("open");
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && archModal && archModal.classList.contains("open")) {
+        archModal.classList.remove("open");
+      }
+    });
+
+    for (const b of archTabButtons) {
+      b.addEventListener("click", () => setArchTab(b.dataset.tab));
+    }
+
     liveLogsCopy.addEventListener("click", async () => {
       let text = "";
       if (liveLogsTab === "agent") {

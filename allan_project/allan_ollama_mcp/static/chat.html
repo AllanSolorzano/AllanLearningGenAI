@@ -672,6 +672,468 @@
     @media (max-width: 980px) { .arch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 640px) { .arch-grid { grid-template-columns: 1fr; } }
 
+    /* Request flow timeline */
+    .flow-timeline {
+      position: relative;
+      padding-left: 2.5rem;
+      max-width: 52rem;
+    }
+    .flow-timeline::before {
+      content: "";
+      position: absolute;
+      left: 0.95rem;
+      top: 1.1rem;
+      bottom: 1.1rem;
+      width: 2px;
+      background: var(--border);
+    }
+    .flow-step {
+      position: relative;
+      margin-bottom: 0.85rem;
+    }
+    .flow-step:last-child { margin-bottom: 0; }
+    .flow-num {
+      position: absolute;
+      left: -2.5rem;
+      top: 0.35rem;
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fff;
+      background: #ea580c;
+      border: 2px solid var(--surface);
+      z-index: 1;
+    }
+    .flow-box {
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .flow-box.edge { border-color: rgba(56, 189, 248, 0.55); background: rgba(56, 189, 248, 0.06); }
+    .flow-box.internal { border-color: rgba(234, 88, 12, 0.45); background: rgba(234, 88, 12, 0.05); }
+    .flow-box h4 { margin: 0; font-size: 0.86rem; font-weight: 600; color: var(--text); }
+    .flow-box p { margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--muted); line-height: 1.4; }
+    .flow-box p code { font-size: 0.7rem; }
+    .flow-route-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+    .flow-tag {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .flow-tag.intent { background: rgba(167, 139, 250, 0.2); color: #ddd6fe; border: 1px solid rgba(167, 139, 250, 0.45); }
+    .flow-tag.tool { background: rgba(234, 88, 12, 0.15); color: #fdba74; border: 1px solid rgba(234, 88, 12, 0.4); }
+    .flow-tag.direct { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid var(--border); }
+    .flow-ip {
+      margin: 0.5rem 0 0.85rem;
+      border: 2px solid rgba(167, 139, 250, 0.55);
+      border-radius: 10px;
+      background: rgba(167, 139, 250, 0.06);
+      padding: 0.65rem 0.75rem 0.75rem 2.6rem;
+      position: relative;
+    }
+    .flow-ip-badge {
+      position: absolute;
+      left: 0.65rem;
+      top: 0.65rem;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      background: rgba(167, 139, 250, 0.35);
+      color: #ede9fe;
+      font-size: 0.62rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: -0.02em;
+    }
+    .flow-ip-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ddd6fe;
+      margin: 0 0 0.5rem 0;
+    }
+    .flow-ip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 1rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .flow-ip-grid span strong { color: #c4b5fd; font-weight: 600; }
+    @media (max-width: 640px) { .flow-ip-grid { grid-template-columns: 1fr; } }
+
+    /* Overview layered diagram */
+    .ov-stack { max-width: 54rem; }
+    .ov-layer {
+      border-radius: 10px;
+      padding: 0.55rem 0.65rem 0.65rem;
+      margin-bottom: 0;
+    }
+    .ov-layer-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin: 0 0 0.45rem 0;
+      text-transform: uppercase;
+    }
+    .ov-layer.browser {
+      border: 2px solid rgba(56, 189, 248, 0.55);
+      background: rgba(56, 189, 248, 0.05);
+    }
+    .ov-layer.browser .ov-layer-title { color: #7dd3fc; }
+    .ov-layer.api {
+      border: 2px solid rgba(167, 139, 250, 0.55);
+      background: rgba(167, 139, 250, 0.05);
+    }
+    .ov-layer.api .ov-layer-title { color: #ddd6fe; }
+    .ov-layer.memory {
+      border: 2px solid rgba(45, 212, 191, 0.55);
+      background: rgba(45, 212, 191, 0.05);
+    }
+    .ov-layer.memory .ov-layer-title { color: #5eead4; }
+    .ov-layer.external {
+      border: 2px solid rgba(234, 88, 12, 0.5);
+      background: rgba(234, 88, 12, 0.05);
+    }
+    .ov-layer.external .ov-layer-title { color: #fdba74; }
+    .ov-tiles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+    }
+    .ov-tiles.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ov-tile {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 0.4rem 0.5rem;
+      min-height: 2.6rem;
+    }
+    .ov-tile.span-2 { grid-column: span 2; }
+    .ov-tile strong {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .ov-tile span {
+      display: block;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+      line-height: 1.3;
+    }
+    .ov-arrow {
+      text-align: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+      padding: 0.35rem 0;
+      line-height: 1.3;
+    }
+    .ov-arrow::before {
+      content: "↓";
+      display: block;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 0.1rem;
+    }
+    .ov-arrows-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem 1rem;
+      padding: 0.35rem 0 0.45rem;
+      font-size: 0.66rem;
+      color: var(--muted);
+    }
+    .ov-arrows-row span::before {
+      content: "↓ ";
+      color: #94a3b8;
+    }
+    @media (max-width: 640px) {
+      .ov-tiles, .ov-tiles.cols-3 { grid-template-columns: 1fr; }
+      .ov-tile.span-2 { grid-column: span 1; }
+    }
+
+    /* Settings modal */
+    .settings-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 55;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .settings-modal-overlay.open { display: flex; }
+    .settings-modal {
+      width: min(520px, 96vw);
+      max-height: 90vh;
+      overflow: auto;
+      background: #f8fafc;
+      color: #0f172a;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .settings-modal-header {
+      padding: 1rem 1.1rem 0.65rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .settings-modal-header h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .settings-modal-header p {
+      margin: 0.25rem 0 0;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .settings-close {
+      border: none;
+      background: transparent;
+      font-size: 1.25rem;
+      color: #64748b;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.15rem 0.35rem;
+    }
+    .settings-body { padding: 0.85rem 1.1rem 1rem; }
+    .settings-field { margin-bottom: 0.85rem; }
+    .settings-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.3rem;
+    }
+    .settings-field input[type="text"],
+    .settings-field input[type="number"],
+    .settings-field select,
+    .settings-field textarea {
+      width: 100%;
+      font-size: 0.88rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+    }
+    .settings-field textarea { min-height: 7rem; font-family: ui-monospace, monospace; font-size: 0.76rem; }
+    .settings-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+    .settings-model-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.45rem;
+      align-items: end;
+    }
+    .settings-model-row select { min-width: 10rem; }
+    .settings-check {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      margin-bottom: 0.55rem;
+      font-size: 0.82rem;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .settings-check input { margin-top: 0.2rem; flex-shrink: 0; }
+    .settings-check span small { display: block; color: #64748b; font-weight: 400; margin-top: 0.1rem; }
+    .settings-hint {
+      font-size: 0.74rem;
+      color: #64748b;
+      margin: 0.35rem 0 0.65rem;
+      line-height: 1.35;
+    }
+    .settings-warn {
+      font-size: 0.74rem;
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.45rem 0.55rem;
+      margin-bottom: 0.65rem;
+    }
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 0.5rem;
+    }
+    .settings-actions button {
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+    }
+    .settings-actions button.primary {
+      background: #ea580c;
+      border-color: #ea580c;
+      color: #fff;
+      font-weight: 600;
+    }
+    .settings-mcp details { margin-top: 0.75rem; }
+    .settings-mcp summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.45rem;
+    }
+    .settings-warn.hidden { display: none; }
+    .settings-section {
+      margin: 1rem 0 0.65rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .settings-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+    .settings-section h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .settings-footer-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      padding: 0.75rem 0 0;
+      margin-top: 0.5rem;
+      border-top: 1px solid #e2e8f0;
+      position: sticky;
+      bottom: 0;
+      background: #f8fafc;
+    }
+
+    /* MCP servers modal */
+    .mcp-modal.settings-modal { width: min(720px, 96vw); }
+    .mcp-section-title {
+      margin: 0 0 0.35rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .mcp-server-list { display: flex; flex-direction: column; gap: 0.65rem; margin: 0.5rem 0 0; }
+    .mcp-server-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      background: #fff;
+    }
+    .mcp-server-card.disabled { opacity: 0.72; background: #f1f5f9; }
+    .mcp-server-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .mcp-server-name { font-weight: 700; font-size: 0.9rem; color: #0f172a; }
+    .mcp-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      color: #64748b;
+      background: #f8fafc;
+    }
+    .mcp-badge.on { color: #166534; border-color: #86efac; background: #dcfce7; }
+    .mcp-server-cmd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.72rem;
+      color: #475569;
+      word-break: break-all;
+      margin: 0 0 0.25rem;
+    }
+    .mcp-server-meta { font-size: 0.72rem; color: #64748b; margin-bottom: 0.45rem; }
+    .mcp-server-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .mcp-server-actions button {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+    }
+    .mcp-server-actions button.danger { color: #b91c1c; border-color: #fecaca; }
+    .mcp-tool-discovery {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .mcp-tool-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+    .mcp-tool-toolbar select {
+      flex: 1;
+      min-width: 10rem;
+      font-size: 0.85rem;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .mcp-tool-list {
+      max-height: 16rem;
+      overflow: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .mcp-tool-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.78rem;
+      align-items: flex-start;
+    }
+    .mcp-tool-row:last-child { border-bottom: none; }
+    .mcp-tool-row input { margin-top: 0.2rem; flex-shrink: 0; }
+    .mcp-tool-row.disabled { opacity: 0.55; }
+    .mcp-tool-names {
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      color: #334155;
+      margin-bottom: 0.15rem;
+    }
+    .mcp-tool-desc { color: #64748b; line-height: 1.35; }
+    .mcp-empty { font-size: 0.78rem; color: #64748b; padding: 0.65rem; }
+
     .top-header { position: relative; }
   </style>
 </head>
@@ -750,21 +1212,6 @@
       </details>
     </section>
 
-    <details class="panel" id="settingsPanel">
-      <summary>Settings — MCP servers &amp; history</summary>
-      <div class="panel-body">
-        <div class="hint">MCP config is saved to the file shown after “Load”. Use a JSON-capable Ollama model for “Intent plan”. “Intent plan” alone does not load MCP tools — enable “MCP tools” when the plan should call remote tools.</div>
-        <label class="hint" for="mcpConfigJson">mcp_remote_servers.json</label>
-        <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
-        <div class="panel-row">
-          <button type="button" id="btnLoadMcp">Load config</button>
-          <button type="button" id="btnSaveMcp">Save &amp; apply</button>
-          <button type="button" id="btnRefreshMcpTools">Refresh tool list</button>
-        </div>
-        <div id="mcpToolsSummary"></div>
-      </div>
-    </details>
-
     <div id="log" aria-live="polite"></div>
 
     <div id="debugPanel" aria-label="Debug console"><pre id="debugPre"></pre></div>
@@ -801,7 +1248,7 @@
     <div class="arch-modal" role="document">
       <div class="arch-modal-header">
         <div>
-          <div class="arch-modal-title">System Architecture</div>
+          <div class="arch-modal-title">◈ System Architecture</div>
           <div class="arch-modal-subtitle">FastAPI + Ollama + SQLite + MCP + (optional) RAG</div>
         </div>
         <button type="button" class="icon-btn" id="archCloseBtn" title="Close">✕</button>
@@ -815,64 +1262,176 @@
         </div>
 
         <div class="arch-tabcontent active" data-tab="overview">
-          <div class="arch-grid">
-            <div class="arch-card">
-              <h4>Browser UI</h4>
-              <p>
-                `static/chat.html` sends `POST /chat` and renders messages from SQLite.
-                Enable flags: `MCP tools` and `Intent plan`.
-              </p>
+          <div class="ov-stack" aria-label="System overview diagram">
+            <section class="ov-layer browser">
+              <h3 class="ov-layer-title">Browser (SPA)</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Sidebar</strong>
+                  <span>Chats · session list · reload history</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Chat Workspace</strong>
+                  <span>Bubbles · Intent trace · pipeline bar</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Live Logs Drawer</strong>
+                  <span>~900 ms poll · agent trace + server log</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>ARCH Modal</strong>
+                  <span>Overview · request flow · memory · tech</span>
+                </div>
+                <div class="ov-tile span-2">
+                  <strong>Settings Panel</strong>
+                  <span>Model · MCP config · Intent plan · MCP tools flags</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrow">HTTP / fetch (localhost:8000)</div>
+
+            <section class="ov-layer api">
+              <h3 class="ov-layer-title">FastAPI (app.py)</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Intent Pipeline</strong>
+                  <span>intent → plan → execute → compose</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Tool Loop</strong>
+                  <span>Ollama · MCP tool rounds</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Direct Chat</strong>
+                  <span>plain Ollama when flags off</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Session APIs</strong>
+                  <span>/chat · /sessions · /messages</span>
+                </div>
+                <div class="ov-tile span-2">
+                  <strong>Trace APIs</strong>
+                  <span>/agent-trace · /orchestration-state · /logs/tail</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrow">Memory subsystem</div>
+
+            <section class="ov-layer memory">
+              <h3 class="ov-layer-title">Memory subsystem</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Episodic retrieval</strong>
+                  <span>FTS search · past memory injected</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Knowledge base</strong>
+                  <span>durable_memory_fts · optional hybrid RAG</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Reflective memory</strong>
+                  <span>LLM-distilled lessons per turn</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Governance</strong>
+                  <span>write guardrails · orchestration_policies</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrows-row">
+              <span>LLM calls</span>
+              <span>MCP calls (optional)</span>
+              <span>Storage R/W</span>
             </div>
-            <div class="arch-card">
-              <h4>API + persistence</h4>
-              <p>
-                `allan_ollama_mcp/app.py` exposes `/chat`, `/sessions`, `/health`, and agent trace endpoints.
-                Chat history + durable memory are stored in `data/app.db`.
-              </p>
-            </div>
-            <div class="arch-card">
-              <h4>LLM + orchestration</h4>
-              <p>
-                `ollama_service.py` handles the chat/tool loop.
-                With `Intent plan`, `agent_orchestrator.py` runs intent->plan->execute->verify->reply, and writes traces.
-              </p>
-            </div>
+
+            <section class="ov-layer external">
+              <h3 class="ov-layer-title">External services &amp; storage</h3>
+              <div class="ov-tiles cols-3">
+                <div class="ov-tile">
+                  <strong>LLM</strong>
+                  <span>Ollama · OLLAMA_HOST</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>MCP (optional)</strong>
+                  <span>stdio servers · mcp_remote_servers.json</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Storage</strong>
+                  <span>SQLite · data/app.db</span>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
         <div class="arch-tabcontent" data-tab="request-flow">
-          <div class="arch-grid">
-            <div class="arch-card">
-              <h4>1) User -> API</h4>
-              <p class="arch-step">UI sends `POST /chat` with `session_id`, `history_limit`, and feature flags.</p>
-              <p class="arch-step">If `session_id` is set, API loads prior messages from SQLite.</p>
+          <div class="flow-timeline" aria-label="Request flow diagram">
+            <div class="flow-step">
+              <span class="flow-num">1</span>
+              <div class="flow-box edge">
+                <h4>User sends message</h4>
+                <p><code>POST /chat</code> → FastAPI (<code>ollama_service.chat_with_optional_session</code>)</p>
+              </div>
             </div>
-            <div class="arch-card">
-              <h4>2) Retrieval (optional)</h4>
-              <p class="arch-step">
-                `kb_connector.py` queries durable memory via SQLite FTS5.
-              </p>
-              <p class="arch-step">
-                If `ALLAN_RAG_HYBRID=1`, it fuses BM25 + embeddings (RRF) over chunked memory.
-              </p>
+            <div class="flow-step">
+              <span class="flow-num">2</span>
+              <div class="flow-box internal">
+                <h4>Load session + history from SQLite</h4>
+                <p>Model, <code>history_limit</code> (default 40), <code>use_mcp_tools</code>, <code>use_agent_pipeline</code></p>
+              </div>
             </div>
-            <div class="arch-card">
-              <h4>3) Tools / Agent plan</h4>
-              <p class="arch-step">
-                `MCP tools` lets a tools-capable Ollama model call MCP tools.
-              </p>
-              <p class="arch-step">
-                `Intent plan` runs: preparse -> intent discovery -> capability+policy -> plan graph -> execute/verify -> compose -> memory write.
-              </p>
+            <div class="flow-step">
+              <span class="flow-num">3</span>
+              <div class="flow-box internal">
+                <h4>MCP hub check</h4>
+                <p><code>mcp_hub.list_ollama_tools_and_routes()</code> — tools offered only when MCP is enabled and servers are configured</p>
+              </div>
             </div>
-            <div class="arch-card">
-              <h4>4) Persist + inspect</h4>
-              <p class="arch-step">
-                Every chat turn is written to `chat_messages` when `session_id` is present.
-              </p>
-              <p class="arch-step">
-                Browser can open SQLite audit via `GET /sessions/{id}/agent-trace`.
-              </p>
+            <div class="flow-step">
+              <span class="flow-num">4</span>
+              <div class="flow-box internal">
+                <h4>Route decision</h4>
+                <div class="flow-route-tags">
+                  <span class="flow-tag intent">intent_on → Intent Pipeline</span>
+                  <span class="flow-tag tool">tool_on → Tool Loop</span>
+                  <span class="flow-tag direct">else → Direct Chat</span>
+                </div>
+              </div>
+              <div class="flow-ip" aria-label="Intent pipeline detail">
+                <span class="flow-ip-badge">IP</span>
+                <p class="flow-ip-title">Intent Pipeline (when Intent plan is on)</p>
+                <div class="flow-ip-grid">
+                  <span><strong>1.</strong> preparse → <code>agent_preparse</code></span>
+                  <span><strong>2.</strong> memory retrieval → FTS + optional hybrid RAG</span>
+                  <span><strong>3.</strong> intent discovery → layered L1–L5 LLM JSON</span>
+                  <span><strong>4.</strong> capability + policy → <code>agent_resolve</code></span>
+                  <span><strong>5.</strong> planner → step DAG (<code>plan_graph</code>)</span>
+                  <span><strong>6.</strong> verifier → replan if failures</span>
+                  <span><strong>7.</strong> kb_retrieval → <code>kb_connector.query_local_kb</code></span>
+                  <span><strong>8.</strong> plan_executor → MCP tool calls</span>
+                  <span><strong>9.</strong> composer → evidence-based reply</span>
+                  <span><strong>10.</strong> memory_writer → <code>data/memory/*.md</code></span>
+                  <span><strong>11.</strong> trace writer → <code>data/traces/turn_*.md</code></span>
+                  <span><strong>12.</strong> orchestration audit → SQLite <code>agent_*</code> + <code>orchestration_*</code></span>
+                </div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">5</span>
+              <div class="flow-box internal">
+                <h4>Persist assistant reply → SQLite</h4>
+                <p><code>chat_messages</code> + <code>agent_turn_log</code> + <code>orchestration_*</code> tables</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">6</span>
+              <div class="flow-box edge">
+                <h4>Return ChatResponse to browser</h4>
+                <p><code>reply</code> + optional <code>orchestration</code> trace (intent, pipeline stages, tool fit)</p>
+              </div>
             </div>
           </div>
         </div>
@@ -981,6 +1540,207 @@
     </div>
   </div>
 
+  <div id="mcpModal" class="settings-modal-overlay" role="dialog" aria-label="MCP servers">
+    <div class="settings-modal mcp-modal" role="document">
+      <div class="settings-modal-header">
+        <div>
+          <h2>MCP servers (stdio)</h2>
+          <p id="mcpConfigPathHint">Same format as Cursor / VS Code <code>mcp.servers</code>: <code>command</code>, <code>args</code> (JSON array), optional <code>cwd</code> and <code>env</code>. Tools load per chat when MCP tools is enabled.</p>
+        </div>
+        <button type="button" class="settings-close" id="mcpCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <h3 class="mcp-section-title">Configured servers</h3>
+        <p class="settings-hint" style="margin-top:0">Disable a server to stop spawning its process. Delete removes it from <code>mcp_remote_servers.json</code> and clears saved tool toggles.</p>
+        <div id="mcpServerList" class="mcp-server-list" aria-live="polite"></div>
+
+        <div class="mcp-tool-discovery">
+          <h3 class="mcp-section-title">Tool discovery (per MCP server)</h3>
+          <p class="settings-hint" style="margin-top:0">Saved tools load from SQLite. <strong>Discover tools</strong> connects to the MCP, refreshes the catalog, and updates descriptions. Disabled tools are not sent to the model on the next message.</p>
+          <div class="mcp-tool-toolbar">
+            <select id="mcpToolServerPick" aria-label="MCP server for tool list"></select>
+            <button type="button" id="mcpDiscoverBtn">Discover tools</button>
+          </div>
+          <div id="mcpToolList" class="mcp-tool-list" aria-live="polite">
+            <div class="mcp-empty">Select a server and click Discover tools.</div>
+          </div>
+        </div>
+
+        <details class="settings-mcp" style="margin-top:0.85rem">
+          <summary>Advanced: edit JSON file</summary>
+          <textarea id="mcpModalConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+          <div class="settings-actions" style="border-top:none;margin-top:0.45rem;padding-top:0">
+            <button type="button" id="mcpModalLoadJson">Load file</button>
+            <button type="button" id="mcpModalSaveJson">Save file</button>
+          </div>
+        </details>
+
+        <div class="settings-footer-actions">
+          <button type="button" id="mcpCloseBtn2">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="settings-modal-overlay" role="dialog" aria-label="Settings">
+    <div class="settings-modal" role="document">
+      <div class="settings-modal-header">
+        <div>
+          <h2>Settings</h2>
+          <p>Stored in SQLite (<code>app_settings</code>). Ollama host is applied on save.</p>
+        </div>
+        <button type="button" class="settings-close" id="settingsCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <div id="settingsProviderWarn" class="settings-warn hidden">
+          Only <strong>Ollama (local)</strong> is fully wired in allan_project. Other providers are stored for future use.
+        </div>
+
+        <div class="settings-field">
+          <label for="settingsProvider">Provider</label>
+          <select id="settingsProvider" aria-label="LLM provider">
+            <option value="ollama">Ollama (local)</option>
+            <option value="openai">OpenAI (GPT-4o, GPT-4o-mini…)</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="google">Google Gemini</option>
+            <option value="xai">xAI Grok</option>
+            <option value="openrouter">OpenRouter (multi-model gateway)</option>
+            <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+          </select>
+        </div>
+
+        <div class="settings-field" id="settingsOllamaHostWrap">
+          <label for="settingsOllamaHost">Ollama host</label>
+          <input type="text" id="settingsOllamaHost" placeholder="http://127.0.0.1:11434" />
+        </div>
+
+        <div class="settings-field">
+          <label for="settingsModel">Model name</label>
+          <div class="settings-model-row">
+            <input type="text" id="settingsModel" placeholder="llama3.2" />
+            <select id="settingsModelPick" aria-label="Pick a model">
+              <option value="">— pick a model —</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-row-2">
+          <div class="settings-field">
+            <label for="settingsTemperature">Temperature</label>
+            <input type="number" id="settingsTemperature" min="0" max="2" step="0.1" value="0.3" />
+          </div>
+          <div class="settings-field">
+            <label for="settingsHistoryLimit">Max history messages</label>
+            <input type="number" id="settingsHistoryLimit" min="1" max="500" step="1" value="40" />
+          </div>
+        </div>
+
+        <section class="settings-section" aria-label="Tools">
+          <h3>Tools (MCP)</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsMcp" />
+            <span>
+              Tool calling
+              <small>MCP tools via Ollama tool registry</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsWebSearch" disabled />
+            <span>
+              Web search
+              <small>DuckDuckGo — not implemented yet</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsSynthetic" disabled />
+            <span>
+              Synthetic demo tools
+              <small>Fake SLI + K8s events — lab demos only</small>
+            </span>
+          </label>
+          <p class="settings-hint">
+            Requires a tools-capable Ollama model (e.g. <code>llama3.2</code>, <code>llama3.1</code> — not <code>llama3:latest</code>).
+          </p>
+          <div class="settings-field">
+            <label for="settingsMaxToolRounds">Max tool rounds</label>
+            <input type="number" id="settingsMaxToolRounds" min="1" max="50" step="1" value="12" />
+          </div>
+        </section>
+
+        <section class="settings-section" aria-label="Planning and execution">
+          <h3>Planning &amp; execution</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsIntentPlanning" />
+            <span>
+              Intent planning
+              <small>Preparse → intent JSON → planner; persisted in SQLite</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsPlanExecution" />
+            <span>
+              Plan execution
+              <small>Run plan DAG via tools/MCP → composer (requires intent planning)</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="settings-section" aria-label="Memory and retrieval">
+          <h3>Memory &amp; retrieval</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsSessionMemory" />
+            <span>
+              Session markdown memory
+              <small><code>data/memory/</code> + <code>memory_refs</code></small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsEpisodic" />
+            <span>
+              Episodic retrieval
+              <small>Inject past sessions (FTS) into intent context</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsKb" />
+            <span>
+              Knowledge base retrieval
+              <small>Inject matching runbooks/SOPs before each turn</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsReflective" />
+            <span>
+              Reflective memory
+              <small>LLM distills a lesson after each intent turn</small>
+            </span>
+          </label>
+          <div class="settings-field">
+            <label for="settingsRetentionDays">Memory retention (days)</label>
+            <input type="number" id="settingsRetentionDays" min="1" max="3650" step="1" value="90" />
+          </div>
+        </section>
+
+        <div class="settings-mcp">
+          <details id="settingsMcpDetails">
+            <summary>MCP servers (mcp_remote_servers.json)</summary>
+            <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+            <div class="settings-actions" style="border-top:none;margin-top:0.45rem;padding-top:0">
+              <button type="button" id="btnLoadMcp">Load</button>
+              <button type="button" id="btnRefreshMcpTools">Refresh tools</button>
+            </div>
+            <div id="mcpToolsSummary" class="settings-hint"></div>
+          </details>
+        </div>
+
+        <div class="settings-footer-actions">
+          <button type="button" class="primary" id="settingsSaveBtn">Save</button>
+          <button type="button" id="settingsCloseBtn2">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const LS_KEY = "allan_project_session_id";
     const LS_MODEL = "allan_project_model";
@@ -998,7 +1758,6 @@
     const btnPullHistory = document.getElementById("btnPullHistory");
     const mcpConfigJson = document.getElementById("mcpConfigJson");
     const btnLoadMcp = document.getElementById("btnLoadMcp");
-    const btnSaveMcp = document.getElementById("btnSaveMcp");
     const btnRefreshMcpTools = document.getElementById("btnRefreshMcpTools");
     const mcpToolsSummary = document.getElementById("mcpToolsSummary");
     const statusBadges = document.getElementById("statusBadges");
@@ -1012,7 +1771,43 @@
     const traceCta = document.getElementById("traceCta");
     const traceIntentMd = document.getElementById("traceIntentMd");
     const orchEventsPill = document.getElementById("orchEventsPill");
-    const settingsPanel = document.getElementById("settingsPanel");
+    const mcpModal = document.getElementById("mcpModal");
+    const mcpCloseBtn = document.getElementById("mcpCloseBtn");
+    const mcpCloseBtn2 = document.getElementById("mcpCloseBtn2");
+    const mcpServerList = document.getElementById("mcpServerList");
+    const mcpToolServerPick = document.getElementById("mcpToolServerPick");
+    const mcpDiscoverBtn = document.getElementById("mcpDiscoverBtn");
+    const mcpToolList = document.getElementById("mcpToolList");
+    const mcpModalConfigJson = document.getElementById("mcpModalConfigJson");
+    const mcpModalLoadJson = document.getElementById("mcpModalLoadJson");
+    const mcpModalSaveJson = document.getElementById("mcpModalSaveJson");
+    const mcpConfigPathHint = document.getElementById("mcpConfigPathHint");
+    let mcpSelectedServerId = null;
+
+    const settingsModal = document.getElementById("settingsModal");
+    const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+    const settingsCloseBtn2 = document.getElementById("settingsCloseBtn2");
+    const settingsSaveBtn = document.getElementById("settingsSaveBtn");
+    const settingsProvider = document.getElementById("settingsProvider");
+    const settingsProviderWarn = document.getElementById("settingsProviderWarn");
+    const settingsOllamaHostWrap = document.getElementById("settingsOllamaHostWrap");
+    const settingsOllamaHost = document.getElementById("settingsOllamaHost");
+    const settingsModel = document.getElementById("settingsModel");
+    const settingsModelPick = document.getElementById("settingsModelPick");
+    const settingsTemperature = document.getElementById("settingsTemperature");
+    const settingsHistoryLimit = document.getElementById("settingsHistoryLimit");
+    const settingsIntentPlanning = document.getElementById("settingsIntentPlanning");
+    const settingsPlanExecution = document.getElementById("settingsPlanExecution");
+    const settingsMcp = document.getElementById("settingsMcp");
+    const settingsSessionMemory = document.getElementById("settingsSessionMemory");
+    const settingsEpisodic = document.getElementById("settingsEpisodic");
+    const settingsKb = document.getElementById("settingsKb");
+    const settingsReflective = document.getElementById("settingsReflective");
+    const settingsRetentionDays = document.getElementById("settingsRetentionDays");
+    const settingsWebSearch = document.getElementById("settingsWebSearch");
+    const settingsSynthetic = document.getElementById("settingsSynthetic");
+    const settingsMaxToolRounds = document.getElementById("settingsMaxToolRounds");
+    const settingsMcpDetails = document.getElementById("settingsMcpDetails");
     const debugPanel = document.getElementById("debugPanel");
     const debugPre = document.getElementById("debugPre");
     const btnDebug = document.getElementById("btnDebug");
@@ -1049,6 +1844,25 @@
     let lastAgentTraceBundle = null;
     let lastServerLogLines = [];
     let liveLogsAgentStickBottom = true;
+    let appSettings = {
+      provider: "ollama",
+      ollama_host: "http://127.0.0.1:11434",
+      model: "",
+      temperature: 0.3,
+      history_limit: 40,
+      use_agent_pipeline: false,
+      intent_planning: false,
+      plan_execution: true,
+      use_mcp_tools: false,
+      web_search: false,
+      synthetic_demo_tools: false,
+      max_tool_rounds: 12,
+      session_memory_write: true,
+      episodic_retrieval: true,
+      kb_retrieval: true,
+      reflective_memory: true,
+      memory_retention_days: 90,
+    };
 
     function persistSessionId() {
       if (sessionId) localStorage.setItem(LS_KEY, sessionId);
@@ -1534,16 +2348,149 @@
       }
     }
 
+    function populateSettingsModelPick(names) {
+      const cur = settingsModelPick.value;
+      settingsModelPick.innerHTML = '<option value="">— pick a model —</option>';
+      for (const n of names) {
+        const o = document.createElement("option");
+        o.value = n;
+        o.textContent = n;
+        settingsModelPick.appendChild(o);
+      }
+      if (cur && [...settingsModelPick.options].some((o) => o.value === cur)) {
+        settingsModelPick.value = cur;
+      }
+    }
+
     async function loadModelsFromServer() {
       try {
         const r = await fetch("/models");
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(formatDetail(d.detail));
-        populateModelSelect(Array.isArray(d.models) ? d.models : []);
+        const names = Array.isArray(d.models) ? d.models : [];
+        populateModelSelect(names);
+        populateSettingsModelPick(names);
       } catch (e) {
         appendMeta("Could not list Ollama models: " + String(e.message || e));
       }
       await refreshStatusBadges();
+    }
+
+    function applySettingsToUI(s) {
+      appSettings = { ...appSettings, ...s };
+      settingsProvider.value = appSettings.provider || "ollama";
+      settingsOllamaHost.value = appSettings.ollama_host || "http://127.0.0.1:11434";
+      settingsModel.value = appSettings.model || "";
+      settingsTemperature.value = String(appSettings.temperature ?? 0.3);
+      settingsHistoryLimit.value = String(appSettings.history_limit ?? 40);
+      const intentOn = !!(
+        appSettings.intent_planning ?? appSettings.use_agent_pipeline
+      );
+      settingsIntentPlanning.checked = intentOn;
+      settingsPlanExecution.checked = appSettings.plan_execution !== false;
+      settingsMcp.checked = !!appSettings.use_mcp_tools;
+      settingsWebSearch.checked = !!appSettings.web_search;
+      settingsSynthetic.checked = !!appSettings.synthetic_demo_tools;
+      settingsMaxToolRounds.value = String(appSettings.max_tool_rounds ?? 12);
+      settingsSessionMemory.checked = appSettings.session_memory_write !== false;
+      settingsEpisodic.checked = appSettings.episodic_retrieval !== false;
+      settingsKb.checked = appSettings.kb_retrieval !== false;
+      settingsReflective.checked = appSettings.reflective_memory !== false;
+      settingsRetentionDays.value = String(appSettings.memory_retention_days ?? 90);
+      useAgentEl.checked = intentOn;
+      useMcpEl.checked = settingsMcp.checked;
+      settingsPlanExecution.disabled = !intentOn;
+      localStorage.setItem(LS_AGENT, useAgentEl.checked ? "1" : "0");
+      localStorage.setItem(LS_MCP, useMcpEl.checked ? "1" : "0");
+      const m = (appSettings.model || "").trim();
+      if (m) {
+        if (![...modelSelect.options].some((o) => o.value === m)) {
+          const o = document.createElement("option");
+          o.value = m;
+          o.textContent = m;
+          modelSelect.appendChild(o);
+        }
+        modelSelect.value = m;
+        localStorage.setItem(LS_MODEL, m);
+      }
+      settingsProviderWarn.classList.toggle(
+        "hidden",
+        settingsProvider.value === "ollama"
+      );
+      settingsOllamaHostWrap.style.display =
+        settingsProvider.value === "ollama" ? "" : "none";
+      updateHeaderSubline();
+      void refreshStatusBadges();
+    }
+
+    function readSettingsFromForm() {
+      const intentOn = settingsIntentPlanning.checked;
+      return {
+        provider: settingsProvider.value,
+        ollama_host: settingsOllamaHost.value.trim(),
+        model: settingsModel.value.trim(),
+        temperature: parseFloat(settingsTemperature.value) || 0.3,
+        history_limit: parseInt(settingsHistoryLimit.value, 10) || 40,
+        intent_planning: intentOn,
+        plan_execution: intentOn && settingsPlanExecution.checked,
+        use_agent_pipeline: intentOn,
+        use_mcp_tools: settingsMcp.checked,
+        web_search: settingsWebSearch.checked,
+        synthetic_demo_tools: settingsSynthetic.checked,
+        max_tool_rounds: parseInt(settingsMaxToolRounds.value, 10) || 12,
+        session_memory_write: settingsSessionMemory.checked,
+        episodic_retrieval: settingsEpisodic.checked,
+        kb_retrieval: settingsKb.checked,
+        reflective_memory: settingsReflective.checked,
+        memory_retention_days: parseInt(settingsRetentionDays.value, 10) || 90,
+      };
+    }
+
+    async function loadSettingsFromServer() {
+      try {
+        const r = await fetch("/settings");
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail));
+        applySettingsToUI(d);
+      } catch (e) {
+        appendMeta("Could not load settings: " + String(e.message || e));
+      }
+    }
+
+    function openSettingsModal(focusMcp) {
+      applySettingsToUI(appSettings);
+      settingsModal.classList.add("open");
+      if (focusMcp) {
+        settingsMcpDetails.open = true;
+        mcpConfigJson.focus();
+      } else {
+        settingsProvider.focus();
+      }
+    }
+
+    function closeSettingsModal() {
+      settingsModal.classList.remove("open");
+    }
+
+    async function saveSettingsFromModal() {
+      const body = readSettingsFromForm();
+      try {
+        const r = await fetch("/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail) || r.statusText);
+        applySettingsToUI(d);
+        if (mcpConfigJson.value.trim()) {
+          await saveMcpConfig();
+        }
+        appendMeta("Settings saved to SQLite.");
+        closeSettingsModal();
+      } catch (e) {
+        appendBubble("error", "Settings save failed: " + String(e.message || e));
+      }
     }
 
     async function createSession() {
@@ -1651,22 +2598,14 @@
     }
 
     async function loadMcpConfig() {
+      await loadMcpJsonIntoTextareas();
       const r = await fetch("/mcp/remotes-config");
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        appendMeta("Could not load MCP config: " + formatDetail(d.detail));
-        return;
+      if (r.ok) {
+        appendMeta(
+          "MCP config path: " + (d.path || "") + (d.exists ? "" : " (new file on save)")
+        );
       }
-      if (d.content != null && String(d.content).trim()) {
-        try {
-          mcpConfigJson.value = JSON.stringify(JSON.parse(d.content), null, 2);
-        } catch {
-          mcpConfigJson.value = String(d.content);
-        }
-      } else {
-        mcpConfigJson.value = JSON.stringify({ servers: [] }, null, 2);
-      }
-      appendMeta("MCP config path: " + (d.path || "") + (d.exists ? "" : " (new file on save)"));
     }
 
     async function saveMcpConfig() {
@@ -1701,8 +2640,307 @@
       const names = (d.tools || []).map((t) => t.name).filter(Boolean);
       mcpToolsSummary.textContent =
         names.length +
-        " tool(s): " +
-        (names.length ? names.join(", ") : "(none returned)");
+        " active tool(s) for chat: " +
+        (names.length ? names.slice(0, 12).join(", ") + (names.length > 12 ? "…" : "") : "(none — discover tools or enable servers)");
+    }
+
+    function syncMcpJsonTextareas(contentObjOrText) {
+      let text;
+      if (typeof contentObjOrText === "string") {
+        text = contentObjOrText;
+      } else {
+        text = JSON.stringify(contentObjOrText || { servers: [] }, null, 2);
+      }
+      mcpConfigJson.value = text;
+      mcpModalConfigJson.value = text;
+    }
+
+    async function loadMcpJsonIntoTextareas() {
+      const r = await fetch("/mcp/remotes-config");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendMeta("Could not load MCP config: " + formatDetail(d.detail));
+        return;
+      }
+      if (d.content != null && String(d.content).trim()) {
+        try {
+          syncMcpJsonTextareas(JSON.parse(d.content));
+        } catch {
+          syncMcpJsonTextareas(String(d.content));
+        }
+      } else {
+        syncMcpJsonTextareas({ servers: [] });
+      }
+      if (mcpConfigPathHint && d.path) {
+        mcpConfigPathHint.innerHTML =
+          'Config file: <code>' +
+          escapeHtml(d.path) +
+          "</code>" +
+          (d.exists ? "" : " (created on save)") +
+          ". Same format as Cursor <code>mcp.servers</code>.";
+      }
+    }
+
+    function renderMcpServers(servers) {
+      mcpServerList.innerHTML = "";
+      mcpToolServerPick.innerHTML = "";
+      if (!Array.isArray(servers) || servers.length === 0) {
+        mcpServerList.innerHTML =
+          '<div class="mcp-empty">No MCP servers configured. Use Advanced JSON below or copy from <code>mcp_remote_servers.example.json</code>.</div>';
+        mcpToolServerPick.innerHTML =
+          '<option value="">— no servers —</option>';
+        mcpSelectedServerId = null;
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Add a server first.</div>';
+        return;
+      }
+      for (const s of servers) {
+        const card = document.createElement("div");
+        card.className = "mcp-server-card" + (s.enabled ? "" : " disabled");
+        const label = escapeHtml(s.label || s.id);
+        const idx = s.index != null ? " #" + s.index : "";
+        card.innerHTML =
+          '<div class="mcp-server-head"><span class="mcp-server-name">' +
+          label +
+          idx +
+          '</span><span class="mcp-badge ' +
+          (s.enabled ? "on" : "") +
+          '">' +
+          (s.enabled ? "ON" : "OFF") +
+          "</span></div>" +
+          '<div class="mcp-server-cmd">' +
+          escapeHtml(s.command_preview || s.command || "") +
+          "</div>" +
+          '<div class="mcp-server-meta">' +
+          (s.env_count
+            ? s.env_count + " environment variable(s) — values hidden in list"
+            : "No environment variables") +
+          "</div>" +
+          '<div class="mcp-server-actions"></div>';
+        const actions = card.querySelector(".mcp-server-actions");
+        const btnToggle = document.createElement("button");
+        btnToggle.type = "button";
+        btnToggle.textContent = s.enabled ? "Disable" : "Enable";
+        btnToggle.addEventListener("click", () => {
+          void setMcpServerEnabled(s.id, !s.enabled);
+        });
+        const btnDel = document.createElement("button");
+        btnDel.type = "button";
+        btnDel.className = "danger";
+        btnDel.textContent = "Delete";
+        btnDel.addEventListener("click", () => {
+          if (
+            !confirm(
+              "Delete server " +
+                (s.label || s.id) +
+                "? This removes it from the JSON file and clears saved tool toggles."
+            )
+          ) {
+            return;
+          }
+          void deleteMcpServer(s.id);
+        });
+        actions.appendChild(btnToggle);
+        actions.appendChild(btnDel);
+        mcpServerList.appendChild(card);
+
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = (s.label || s.id) + idx;
+        mcpToolServerPick.appendChild(opt);
+      }
+      if (
+        !mcpSelectedServerId ||
+        !servers.some((x) => x.id === mcpSelectedServerId)
+      ) {
+        mcpSelectedServerId = servers[0].id;
+      }
+      mcpToolServerPick.value = mcpSelectedServerId;
+      void loadMcpToolCatalog(mcpSelectedServerId);
+    }
+
+    async function loadMcpServersUi() {
+      const r = await fetch("/mcp/servers");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpServerList.innerHTML =
+          '<div class="mcp-empty">Could not load servers: ' +
+          escapeHtml(formatDetail(d.detail) || r.statusText) +
+          "</div>";
+        return;
+      }
+      renderMcpServers(d.servers || []);
+    }
+
+    async function setMcpServerEnabled(serverId, enabled) {
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled }),
+        }
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    async function deleteMcpServer(serverId) {
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId),
+        { method: "DELETE" }
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      if (mcpSelectedServerId === serverId) mcpSelectedServerId = null;
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    function renderMcpToolCatalog(tools, serverId) {
+      if (!serverId) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Select a server.</div>';
+        return;
+      }
+      if (!Array.isArray(tools) || tools.length === 0) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">No saved tools for this server. Click <strong>Discover tools</strong> to connect and refresh the catalog.</div>';
+        return;
+      }
+      mcpToolList.innerHTML = "";
+      for (const t of tools) {
+        const row = document.createElement("label");
+        row.className = "mcp-tool-row" + (t.enabled ? "" : " disabled");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!t.enabled;
+        cb.addEventListener("change", () => {
+          void setMcpToolEnabled(serverId, t.tool_name, cb.checked);
+        });
+        const body = document.createElement("div");
+        body.innerHTML =
+          '<div class="mcp-tool-names">' +
+          escapeHtml(t.tool_name) +
+          " → " +
+          escapeHtml(t.prefixed_name) +
+          "</div>" +
+          '<div class="mcp-tool-desc">' +
+          escapeHtml((t.description || "").slice(0, 400)) +
+          "</div>";
+        row.appendChild(cb);
+        row.appendChild(body);
+        mcpToolList.appendChild(row);
+      }
+    }
+
+    async function loadMcpToolCatalog(serverId) {
+      if (!serverId) return;
+      mcpSelectedServerId = serverId;
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId) + "/tools"
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Could not load catalog: ' +
+          escapeHtml(formatDetail(d.detail) || r.statusText) +
+          "</div>";
+        return;
+      }
+      renderMcpToolCatalog(d.tools || [], serverId);
+    }
+
+    async function discoverMcpTools() {
+      const serverId = mcpToolServerPick.value.trim();
+      if (!serverId) return;
+      mcpDiscoverBtn.disabled = true;
+      mcpToolList.innerHTML =
+        '<div class="mcp-empty">Connecting to MCP and listing tools…</div>';
+      try {
+        const r = await fetch(
+          "/mcp/servers/" + encodeURIComponent(serverId) + "/discover",
+          { method: "POST" }
+        );
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          mcpToolList.innerHTML =
+            '<div class="mcp-empty">' +
+            escapeHtml(formatDetail(d.detail) || r.statusText) +
+            "</div>";
+          return;
+        }
+        const health = d.server_health || {};
+        let note = "Discovered " + (d.discovered || 0) + " tool(s).";
+        if (health.error) note += " Error: " + health.error;
+        else if (health.healthy === false) note += " Server unhealthy.";
+        appendMeta(note);
+        renderMcpToolCatalog(d.tools || [], serverId);
+        await refreshMcpToolsSummary();
+        await refreshStatusBadges();
+      } finally {
+        mcpDiscoverBtn.disabled = false;
+      }
+    }
+
+    async function setMcpToolEnabled(serverId, toolName, enabled) {
+      const r = await fetch("/mcp/tools", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          server_id: serverId,
+          tool_name: toolName,
+          enabled,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        await loadMcpToolCatalog(serverId);
+        return;
+      }
+      await loadMcpToolCatalog(serverId);
+      await refreshMcpToolsSummary();
+    }
+
+    async function openMcpModal() {
+      mcpModal.classList.add("open");
+      await loadMcpJsonIntoTextareas();
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+    }
+
+    function closeMcpModal() {
+      mcpModal.classList.remove("open");
+    }
+
+    async function saveMcpJsonFromModal() {
+      const raw = mcpModalConfigJson.value;
+      syncMcpJsonTextareas(raw);
+      const r = await fetch("/mcp/remotes-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: raw }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      appendMeta("MCP config saved to " + (d.path || "file") + ". Hub reloaded.");
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
     }
 
     function renderSessionList(rows) {
@@ -1781,11 +3019,11 @@
         const body = {
           message: text,
           session_id: sessionId,
-          history_limit: 40,
+          history_limit: appSettings.history_limit || 40,
           use_mcp_tools: !!useMcpEl.checked,
           use_agent_pipeline: !!useAgentEl.checked,
         };
-        const m = modelSelect.value.trim();
+        const m = modelSelect.value.trim() || (appSettings.model || "").trim();
         if (m) body.model = m;
 
         const r = await fetch("/chat", {
@@ -1838,8 +3076,29 @@
     btnLoadMcp.addEventListener("click", () => {
       void loadMcpConfig();
     });
-    btnSaveMcp.addEventListener("click", () => {
-      void saveMcpConfig();
+    settingsModelPick.addEventListener("change", () => {
+      const v = settingsModelPick.value.trim();
+      if (v) settingsModel.value = v;
+    });
+    settingsProvider.addEventListener("change", () => {
+      settingsProviderWarn.classList.toggle(
+        "hidden",
+        settingsProvider.value === "ollama"
+      );
+      settingsOllamaHostWrap.style.display =
+        settingsProvider.value === "ollama" ? "" : "none";
+    });
+    settingsCloseBtn.addEventListener("click", closeSettingsModal);
+    settingsCloseBtn2.addEventListener("click", closeSettingsModal);
+    settingsIntentPlanning.addEventListener("change", () => {
+      settingsPlanExecution.disabled = !settingsIntentPlanning.checked;
+      if (!settingsIntentPlanning.checked) settingsPlanExecution.checked = false;
+    });
+    settingsSaveBtn.addEventListener("click", () => {
+      void saveSettingsFromModal();
+    });
+    settingsModal.addEventListener("click", (ev) => {
+      if (ev.target === settingsModal) closeSettingsModal();
     });
     btnRefreshMcpTools.addEventListener("click", () => {
       void refreshMcpToolsSummary();
@@ -1886,8 +3145,15 @@
     });
 
     document.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && archModal && archModal.classList.contains("open")) {
+      if (ev.key !== "Escape") return;
+      if (archModal && archModal.classList.contains("open")) {
         archModal.classList.remove("open");
+      }
+      if (mcpModal && mcpModal.classList.contains("open")) {
+        closeMcpModal();
+      }
+      if (settingsModal && settingsModal.classList.contains("open")) {
+        closeSettingsModal();
       }
     });
 
@@ -1927,13 +3193,27 @@
     });
 
     document.getElementById("openSettings").addEventListener("click", () => {
-      settingsPanel.open = true;
-      settingsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      openSettingsModal(false);
     });
     document.getElementById("openMcpSettings").addEventListener("click", () => {
-      settingsPanel.open = true;
-      settingsPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      mcpConfigJson.focus();
+      void openMcpModal();
+    });
+    mcpCloseBtn.addEventListener("click", closeMcpModal);
+    mcpCloseBtn2.addEventListener("click", closeMcpModal);
+    mcpModal.addEventListener("click", (ev) => {
+      if (ev.target === mcpModal) closeMcpModal();
+    });
+    mcpToolServerPick.addEventListener("change", () => {
+      void loadMcpToolCatalog(mcpToolServerPick.value.trim());
+    });
+    mcpDiscoverBtn.addEventListener("click", () => {
+      void discoverMcpTools();
+    });
+    mcpModalLoadJson.addEventListener("click", () => {
+      void loadMcpJsonIntoTextareas();
+    });
+    mcpModalSaveJson.addEventListener("click", () => {
+      void saveMcpJsonFromModal();
     });
     document.getElementById("scrollToModels").addEventListener("click", () => {
       document.getElementById("modelControls").scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -1973,6 +3253,11 @@
     });
     useAgentEl.addEventListener("change", () => {
       localStorage.setItem(LS_AGENT, useAgentEl.checked ? "1" : "0");
+      appSettings.intent_planning = useAgentEl.checked;
+      appSettings.use_agent_pipeline = useAgentEl.checked;
+      if (useAgentEl.checked && appSettings.plan_execution === undefined) {
+        appSettings.plan_execution = true;
+      }
       void refreshStatusBadges();
       updateHeaderSubline();
     });
@@ -2007,6 +3292,7 @@
       const q = params.get("session");
       try {
         await loadModelsFromServer();
+        await loadSettingsFromServer();
         if (q) {
           await loadHistoryForSession(q);
           appendMeta("Opened from ?session= in URL.");

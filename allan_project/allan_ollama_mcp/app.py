@@ -43,19 +43,25 @@ from pydantic import BaseModel, Field
 from . import database, ollama_service
 from .logging_config import configure_logging, get_log_file_path, tail_lines
 from .orch_store import list_orchestration_summary
+from . import mcp_store
 from .mcp_hub import (
+    delete_server,
     get_default_hub,
     read_remote_config_raw,
     remote_config_path,
+    servers_for_api,
+    set_server_enabled,
     write_remote_config_raw,
 )
 from .ollama_service import SessionNotFoundError
+from .settings_store import load_app_settings, save_app_settings
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging()
     await database.init_db()
+    await mcp_store.ensure_mcp_tool_schema()
     yield
 
 
@@ -157,6 +163,135 @@ async def mcp_remote_tools(
     return {"configured": True, "tools": out, "server_health": server_health}
 
 
+@app.get("/mcp/servers")
+async def mcp_servers_list() -> dict[str, Any]:
+    """Configured stdio MCP servers (summary for settings UI)."""
+    return {"path": str(remote_config_path()), "servers": servers_for_api()}
+
+
+class McpServerEnabledPatch(BaseModel):
+    enabled: bool = True
+
+
+@app.patch("/mcp/servers/{server_id}")
+async def mcp_server_set_enabled(server_id: str, body: McpServerEnabledPatch) -> dict[str, Any]:
+    if not set_server_enabled(server_id, body.enabled):
+        raise HTTPException(status_code=404, detail=f"Unknown MCP server: {server_id}")
+    return {"ok": True, "id": server_id.strip(), "enabled": body.enabled}
+
+
+@app.delete("/mcp/servers/{server_id}")
+async def mcp_server_delete(server_id: str) -> dict[str, Any]:
+    sid = server_id.strip()
+    if not delete_server(sid):
+        raise HTTPException(status_code=404, detail=f"Unknown MCP server: {sid}")
+    await mcp_store.delete_tools_for_server(sid)
+    return {"ok": True, "id": sid}
+
+
+@app.get("/mcp/servers/{server_id}/tools")
+async def mcp_server_tools_catalog(server_id: str) -> dict[str, Any]:
+    tools = await mcp_store.list_tools_for_server(server_id)
+    return {"server_id": server_id.strip(), "tools": tools}
+
+
+@app.post("/mcp/servers/{server_id}/discover")
+async def mcp_server_discover_tools(server_id: str) -> dict[str, Any]:
+    hub = get_default_hub()
+    try:
+        discovered, health = await hub.discover_tools_for_server(server_id)
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    n = await mcp_store.upsert_discovered_tools(server_id, discovered)
+    catalog = await mcp_store.list_tools_for_server(server_id)
+    return {
+        "ok": True,
+        "server_id": server_id.strip(),
+        "discovered": len(discovered),
+        "upserted": n,
+        "tools": catalog,
+        "server_health": health,
+    }
+
+
+class McpToolEnabledPatch(BaseModel):
+    server_id: str
+    tool_name: str
+    enabled: bool = True
+
+
+@app.patch("/mcp/tools")
+async def mcp_tool_set_enabled(body: McpToolEnabledPatch) -> dict[str, Any]:
+    ok = await mcp_store.set_tool_enabled(body.server_id, body.tool_name, body.enabled)
+    if not ok:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Tool {body.tool_name!r} not in catalog for server {body.server_id!r}. Run Discover tools first.",
+        )
+    get_default_hub().invalidate_tools_cache()
+    return {
+        "ok": True,
+        "server_id": body.server_id.strip(),
+        "tool_name": body.tool_name.strip(),
+        "enabled": body.enabled,
+    }
+
+
+class AppSettingsOut(BaseModel):
+    provider: str = "ollama"
+    ollama_host: str = "http://127.0.0.1:11434"
+    model: str = ""
+    temperature: float = 0.3
+    history_limit: int = 40
+    use_agent_pipeline: bool = False
+    use_mcp_tools: bool = False
+    web_search: bool = False
+    synthetic_demo_tools: bool = False
+    max_tool_rounds: int = 12
+    intent_planning: bool = False
+    plan_execution: bool = True
+    session_memory_write: bool = True
+    episodic_retrieval: bool = True
+    kb_retrieval: bool = True
+    reflective_memory: bool = True
+    memory_retention_days: int = 90
+
+
+class AppSettingsPut(BaseModel):
+    provider: str | None = None
+    ollama_host: str | None = None
+    model: str | None = None
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    history_limit: int | None = Field(default=None, ge=1, le=500)
+    use_agent_pipeline: bool | None = None
+    use_mcp_tools: bool | None = None
+    web_search: bool | None = None
+    synthetic_demo_tools: bool | None = None
+    max_tool_rounds: int | None = Field(default=None, ge=1, le=50)
+    intent_planning: bool | None = None
+    plan_execution: bool | None = None
+    session_memory_write: bool | None = None
+    episodic_retrieval: bool | None = None
+    kb_retrieval: bool | None = None
+    reflective_memory: bool | None = None
+    memory_retention_days: int | None = Field(default=None, ge=1, le=3650)
+
+
+@app.get("/settings", response_model=AppSettingsOut)
+async def get_settings() -> AppSettingsOut:
+    """Read persisted UI settings from SQLite ``app_settings``."""
+    data = await load_app_settings()
+    return AppSettingsOut(**data)
+
+
+@app.put("/settings", response_model=AppSettingsOut)
+async def put_settings(body: AppSettingsPut) -> AppSettingsOut:
+    """Merge settings into SQLite and apply Ollama host / tool rounds to the process."""
+    patch = body.model_dump(exclude_unset=True)
+    data = await save_app_settings(patch)
+    return AppSettingsOut(**data)
+
+
 @app.get("/models")
 async def list_models() -> dict[str, list[str]]:
     try:
@@ -198,22 +333,34 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(body: ChatRequest) -> ChatResponse:
+    stored = await load_app_settings()
+    use_mcp = body.use_mcp_tools
+    use_agent = body.use_agent_pipeline
+    model = (body.model or "").strip() or str(stored.get("model") or "").strip() or None
+    history_limit = body.history_limit
+    temperature = float(stored.get("temperature", 0.3))
+    max_tool_rounds = int(stored.get("max_tool_rounds", 12))
+    plan_execution = bool(stored.get("plan_execution", True))
+
     ollama_service.log_chat_request(
         session_id=body.session_id,
-        model=body.model,
-        use_mcp_tools=body.use_mcp_tools,
-        use_agent_pipeline=body.use_agent_pipeline,
+        model=model,
+        use_mcp_tools=use_mcp,
+        use_agent_pipeline=use_agent,
         message_preview=body.message,
     )
     try:
         turn = await ollama_service.chat_with_optional_session(
             message=body.message,
-            model=body.model,
+            model=model,
             system=body.system,
             session_id=body.session_id,
-            history_limit=body.history_limit,
-            use_mcp_tools=body.use_mcp_tools,
-            use_agent_pipeline=body.use_agent_pipeline,
+            history_limit=history_limit,
+            use_mcp_tools=use_mcp,
+            use_agent_pipeline=use_agent,
+            temperature=temperature,
+            max_tool_rounds=max_tool_rounds,
+            plan_execution_enabled=plan_execution,
         )
         reply = turn.reply
         orch = turn.orchestration

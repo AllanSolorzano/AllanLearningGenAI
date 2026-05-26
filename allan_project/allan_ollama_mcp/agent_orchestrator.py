@@ -24,6 +24,11 @@ from .mcp_hub import get_default_hub, merge_mcp_health_into_backends
 from .orch_store import emit_event, insert_intents_from_ranked, insert_plan, insert_tasks_for_plan
 
 
+def _runtime_flag(name: str, *, default: bool = True) -> bool:
+    raw = os.environ.get(name, "1" if default else "0").strip().lower()
+    return raw not in ("0", "false", "no")
+
+
 def build_orchestration_for_ui(
     *,
     correlation_id: str,
@@ -201,6 +206,7 @@ async def run_agent_turn(
     system_policy: str | None = None,
     root_message_id: int | None = None,
     orchestration_correlation_id: str | None = None,
+    plan_execution_enabled: bool = True,
 ) -> tuple[str, dict[str, Any]]:
     sid = session_id.strip()
     correlation_id = (orchestration_correlation_id or "").strip() or str(uuid.uuid4())
@@ -234,15 +240,19 @@ async def run_agent_turn(
     if has_tools:
         ollama_tools, _, mcp_server_health = await hub.list_ollama_tools_and_routes()
 
-    memory_hits = await memory_store.search_relevant_memory(
-        sid, user_message, limit=8, correlation_id=correlation_id
-    )
-    kb_pack = await kb_connector.query_local_kb(
-        sid,
-        user_message,
-        correlation_id=correlation_id,
-        filters={},
-    )
+    memory_hits: list[dict[str, str]] = []
+    if _runtime_flag("ALLAN_EPISODIC_RETRIEVAL"):
+        memory_hits = await memory_store.search_relevant_memory(
+            sid, user_message, limit=8, correlation_id=correlation_id
+        )
+    kb_pack: dict[str, Any] = {"chunks": []}
+    if _runtime_flag("ALLAN_KB_RETRIEVAL"):
+        kb_pack = await kb_connector.query_local_kb(
+            sid,
+            user_message,
+            correlation_id=correlation_id,
+            filters={},
+        )
     for c in kb_pack.get("chunks") or []:
         if not isinstance(c, dict):
             continue
@@ -546,30 +556,40 @@ async def run_agent_turn(
         },
     ]
 
-    step_evidence = await agent_execute.execute_plan_graph(
-        hub,
-        session_id=sid,
-        correlation_id=correlation_id,
-        plan=plan,
-        has_remote_tools=has_tools,
-        plan_row_id=plan_row_id,
-    )
-    evidence.extend(step_evidence)
+    if plan_execution_enabled:
+        step_evidence = await agent_execute.execute_plan_graph(
+            hub,
+            session_id=sid,
+            correlation_id=correlation_id,
+            plan=plan,
+            has_remote_tools=has_tools,
+            plan_row_id=plan_row_id,
+        )
+        evidence.extend(step_evidence)
 
-    evidence = await agent_execute.run_verify_and_optional_replan(
-        client,
-        model,
-        session_id=sid,
-        correlation_id=correlation_id,
-        user_message=user_message,
-        plan=plan,
-        evidence=evidence,
-        planner_input=planner_input,
-        hub=hub,
-        has_remote_tools=has_tools,
-        plan_row_id=plan_row_id,
-        root_message_id=root_message_id,
-    )
+        evidence = await agent_execute.run_verify_and_optional_replan(
+            client,
+            model,
+            session_id=sid,
+            correlation_id=correlation_id,
+            user_message=user_message,
+            plan=plan,
+            evidence=evidence,
+            planner_input=planner_input,
+            hub=hub,
+            has_remote_tools=has_tools,
+            plan_row_id=plan_row_id,
+            root_message_id=root_message_id,
+        )
+    else:
+        evidence.append(
+            {
+                "step_id": "plan",
+                "type": "plan",
+                "status": "skipped",
+                "result_excerpt": "Plan execution disabled in settings; intent + compose only.",
+            }
+        )
 
     reply = await agent_llm.compose_final_reply(
         client,
@@ -615,7 +635,11 @@ async def _maybe_write_memory(
     *,
     correlation_id: str,
 ) -> None:
-    if os.environ.get("ALLAN_AGENT_MEMORY_WRITE", "1").strip().lower() in ("0", "false", "no"):
+    reflective = _runtime_flag("ALLAN_REFLECTIVE_MEMORY")
+    session_write = _runtime_flag("ALLAN_AGENT_MEMORY_WRITE")
+    if not reflective and not session_write:
+        return
+    if not reflective:
         return
     mem_json = await agent_llm.summarize_for_memory(
         client,
@@ -630,7 +654,7 @@ async def _maybe_write_memory(
     tag_line = ""
     if isinstance(tags, list) and tags:
         tag_line = "\n\nTags: " + ", ".join(str(x) for x in tags[:12])
-    if summary:
+    if summary and session_write:
         rel = await memory_store.write_memory_markdown(
             sid,
             title,

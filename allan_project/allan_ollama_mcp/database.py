@@ -79,6 +79,11 @@ CREATE TABLE IF NOT EXISTS agent_handoffs (
     FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
 );
 CREATE INDEX IF NOT EXISTS idx_agent_handoffs_session ON agent_handoffs(session_id, id);
+CREATE TABLE IF NOT EXISTS app_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    settings_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -139,10 +144,28 @@ async def init_db() -> None:
         await _migrate_chat_correlation(db)
         await _migrate_orch_tables(db)
         await _migrate_fts_memory(db)
+        await _migrate_app_settings(db)
         await db.commit()
     from .orch_store import seed_default_policies
+    from .settings_store import apply_runtime_settings, load_app_settings
 
     await seed_default_policies()
+    apply_runtime_settings(await load_app_settings())
+
+
+async def _migrate_app_settings(db: aiosqlite.Connection) -> None:
+    cur = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'"
+    )
+    if await cur.fetchone() is not None:
+        return
+    await db.execute(
+        """CREATE TABLE app_settings (
+               id INTEGER PRIMARY KEY CHECK (id = 1),
+               settings_json TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+           )"""
+    )
 
 
 def _utc_now() -> str:
@@ -542,6 +565,44 @@ async def append_agent_handoff(
         )
         await db.commit()
         return int(cur.lastrowid or 0)
+
+
+async def get_app_settings() -> dict[str, Any]:
+    from .settings_store import DEFAULT_APP_SETTINGS, _coerce_settings
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT settings_json FROM app_settings WHERE id = 1 LIMIT 1"
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return _coerce_settings({})
+    raw = row[0]
+    try:
+        data = json.loads(str(raw)) if raw else {}
+    except json.JSONDecodeError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return _coerce_settings(data)
+
+
+async def set_app_settings(settings: dict[str, Any]) -> None:
+    from .settings_store import _coerce_settings
+
+    payload = _coerce_settings(settings)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute(
+            """INSERT INTO app_settings (id, settings_json, updated_at)
+               VALUES (1, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                 settings_json = excluded.settings_json,
+                 updated_at = excluded.updated_at""",
+            (json.dumps(payload, default=str), _utc_now()),
+        )
+        await db.commit()
 
 
 async def list_agent_handoffs(

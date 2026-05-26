@@ -44,6 +44,7 @@ class RemoteServerEntry:
     cwd: str | None = None
     kind: str | None = None
     label: str | None = None
+    enabled: bool = True
 
 
 def _config_path() -> Path:
@@ -84,6 +85,11 @@ def load_remote_servers() -> list[RemoteServerEntry]:
         cwd_str = str(cwd) if cwd else None
         kind_raw = str(raw.get("kind") or "").strip() or None
         label_raw = str(raw.get("label") or "").strip() or None
+        en_raw = raw.get("enabled", True)
+        enabled = not (
+            en_raw is False
+            or (isinstance(en_raw, str) and en_raw.strip().lower() in ("0", "false", "no"))
+        )
         out.append(
             RemoteServerEntry(
                 id=sid,
@@ -93,6 +99,7 @@ def load_remote_servers() -> list[RemoteServerEntry]:
                 cwd=cwd_str,
                 kind=kind_raw,
                 label=label_raw,
+                enabled=enabled,
             )
         )
     return out
@@ -160,8 +167,84 @@ def strict_validate_servers_json(raw: str) -> dict[str, Any]:
         label_opt = str(item.get("label") or "").strip()
         if label_opt:
             row["label"] = label_opt
+        if item.get("enabled") is False:
+            row["enabled"] = False
         out.append(row)
     return {"servers": out}
+
+
+def load_remote_config_dict() -> dict[str, Any]:
+    exists, text = read_remote_config_raw()
+    if not exists or not text:
+        return {"servers": []}
+    try:
+        root = json.loads(text)
+    except json.JSONDecodeError:
+        return {"servers": []}
+    if not isinstance(root, dict):
+        return {"servers": []}
+    return root
+
+
+def write_remote_config_dict(root: dict[str, Any]) -> Path:
+    return write_remote_config_raw(json.dumps(root, indent=2))
+
+
+def set_server_enabled(server_id: str, enabled: bool) -> bool:
+    root = load_remote_config_dict()
+    servers = root.get("servers")
+    if not isinstance(servers, list):
+        return False
+    found = False
+    for item in servers:
+        if isinstance(item, dict) and str(item.get("id") or "").strip() == server_id.strip():
+            item["enabled"] = bool(enabled)
+            found = True
+            break
+    if not found:
+        return False
+    write_remote_config_dict(root)
+    reset_global_mcp_hub()
+    return True
+
+
+def delete_server(server_id: str) -> bool:
+    sid = server_id.strip()
+    root = load_remote_config_dict()
+    servers = root.get("servers")
+    if not isinstance(servers, list):
+        return False
+    new_list = [
+        s for s in servers if isinstance(s, dict) and str(s.get("id") or "").strip() != sid
+    ]
+    if len(new_list) == len(servers):
+        return False
+    root["servers"] = new_list
+    write_remote_config_dict(root)
+    reset_global_mcp_hub()
+    return True
+
+
+def servers_for_api() -> list[dict[str, Any]]:
+    """Summary rows for the settings UI."""
+    out: list[dict[str, Any]] = []
+    for i, e in enumerate(load_remote_servers(), start=1):
+        env_n = len(e.env or {})
+        cmd_preview = f"{e.command} {json.dumps(e.args)}"
+        out.append(
+            {
+                "index": i,
+                "id": e.id,
+                "label": (e.label or e.id).strip(),
+                "command": e.command,
+                "args": e.args,
+                "command_preview": cmd_preview[:240],
+                "env_count": env_n,
+                "enabled": e.enabled,
+                "kind": e.kind or "stdio",
+            }
+        )
+    return out
 
 
 def write_remote_config_raw(raw: str) -> Path:
@@ -253,6 +336,8 @@ class McpHub:
         """Planner-visible registry: stdio MCP processes (extensible to more transports later)."""
         out: list[dict[str, Any]] = []
         for e in self._entries:
+            if not e.enabled:
+                continue
             transport = (e.kind or "stdio").strip() or "stdio"
             out.append(
                 {
@@ -268,6 +353,95 @@ class McpHub:
     def _invalidate_cache(self) -> None:
         self._cache = None
 
+    def invalidate_tools_cache(self) -> None:
+        """Drop cached tool list (e.g. after catalog toggle)."""
+        self._invalidate_cache()
+
+    def _entry_by_id(self, server_id: str) -> RemoteServerEntry | None:
+        sid = server_id.strip()
+        for e in self._entries:
+            if e.id == sid:
+                return e
+        return None
+
+    async def _list_mcp_tools_for_entry(
+        self, entry: RemoteServerEntry
+    ) -> tuple[list[mcp_types.Tool], str | None]:
+        """Connect once and return raw MCP tools (or error message)."""
+        params = StdioServerParameters(
+            command=entry.command,
+            args=entry.args,
+            env=entry.env,
+            cwd=entry.cwd,
+        )
+        tools: list[mcp_types.Tool] = []
+        try:
+            async with stdio_client(params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    cursor: str | None = None
+                    while True:
+                        if cursor:
+                            lr = await session.list_tools(
+                                params=mcp_types.PaginatedRequestParams(cursor=cursor)
+                            )
+                        else:
+                            lr = await session.list_tools()
+                        tools.extend(lr.tools)
+                        cursor = getattr(lr, "nextCursor", None)
+                        if not cursor:
+                            break
+            return tools, None
+        except Exception as exc:
+            logger.exception("Failed to list tools from MCP server %r", entry.id)
+            return [], f"{type(exc).__name__}: {exc}"[:800]
+
+    async def discover_tools_for_server(
+        self, server_id: str
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Live list-tools for one server (for UI catalog refresh)."""
+        entry = self._entry_by_id(server_id)
+        if entry is None:
+            raise KeyError(f"Unknown MCP server: {server_id!r}")
+        t0 = time.perf_counter()
+        if not entry.enabled:
+            return [], {
+                "backend_id": entry.id,
+                "healthy": None,
+                "enabled": False,
+                "error": "Server is disabled",
+                "tool_count": 0,
+                "list_latency_ms": 0,
+            }
+        raw_tools, err = await self._list_mcp_tools_for_entry(entry)
+        out: list[dict[str, Any]] = []
+        for t in raw_tools:
+            prefixed = f"{entry.id}__{t.name}"
+            schema = t.inputSchema
+            if hasattr(schema, "model_dump"):
+                schema = schema.model_dump(exclude_none=True)
+            if not isinstance(schema, dict):
+                schema = {}
+            out.append(
+                {
+                    "tool_name": t.name,
+                    "prefixed_name": prefixed,
+                    "description": (t.description or t.title or "").strip()
+                    or f"MCP tool {t.name}",
+                    "parameters": schema,
+                }
+            )
+        health = {
+            "backend_id": entry.id,
+            "healthy": err is None,
+            "enabled": True,
+            "error": err,
+            "tool_count": len(out),
+            "list_latency_ms": int((time.perf_counter() - t0) * 1000),
+        }
+        self._invalidate_cache()
+        return out, health
+
     async def list_ollama_tools_and_routes(
         self,
         *,
@@ -282,61 +456,47 @@ class McpHub:
         ):
             return self._cache[0], self._cache[1], self._cache[3]
 
+        from . import mcp_store
+
         ollama_tools: list[dict[str, Any]] = []
         routes: dict[str, tuple[str, str]] = {}
         server_health: list[dict[str, Any]] = []
 
         for entry in self._entries:
-            params = StdioServerParameters(
-                command=entry.command,
-                args=entry.args,
-                env=entry.env,
-                cwd=entry.cwd,
-            )
             t0 = time.perf_counter()
-            n_tools = 0
-            err_msg: str | None = None
-            try:
-                async with stdio_client(params) as (read, write):
-                    async with ClientSession(read, write) as session:
-                        await session.initialize()
-                        cursor: str | None = None
-                        while True:
-                            if cursor:
-                                lr = await session.list_tools(
-                                    params=mcp_types.PaginatedRequestParams(cursor=cursor)
-                                )
-                            else:
-                                lr = await session.list_tools()
-                            for t in lr.tools:
-                                prefixed = f"{entry.id}__{t.name}"
-                                routes[prefixed] = (entry.id, t.name)
-                                ollama_tools.append(_mcp_tool_to_ollama(prefixed, t))
-                                n_tools += 1
-                            cursor = getattr(lr, "nextCursor", None)
-                            if not cursor:
-                                break
+            if not entry.enabled:
                 server_health.append(
                     {
                         "backend_id": entry.id,
-                        "healthy": True,
+                        "healthy": None,
+                        "enabled": False,
                         "error": None,
-                        "tool_count": n_tools,
-                        "list_latency_ms": int((time.perf_counter() - t0) * 1000),
-                    }
-                )
-            except Exception as exc:
-                logger.exception("Failed to list tools from MCP server %r", entry.id)
-                err_msg = f"{type(exc).__name__}: {exc}"[:800]
-                server_health.append(
-                    {
-                        "backend_id": entry.id,
-                        "healthy": False,
-                        "error": err_msg,
                         "tool_count": 0,
-                        "list_latency_ms": int((time.perf_counter() - t0) * 1000),
+                        "list_latency_ms": 0,
                     }
                 )
+                continue
+
+            raw_tools, err_msg = await self._list_mcp_tools_for_entry(entry)
+            tool_filter = await mcp_store.enabled_tool_filter(entry.id)
+            n_tools = 0
+            for t in raw_tools:
+                if tool_filter is not None and not tool_filter.get(t.name, True):
+                    continue
+                prefixed = f"{entry.id}__{t.name}"
+                routes[prefixed] = (entry.id, t.name)
+                ollama_tools.append(_mcp_tool_to_ollama(prefixed, t))
+                n_tools += 1
+            server_health.append(
+                {
+                    "backend_id": entry.id,
+                    "healthy": err_msg is None,
+                    "enabled": True,
+                    "error": err_msg,
+                    "tool_count": n_tools,
+                    "list_latency_ms": int((time.perf_counter() - t0) * 1000),
+                }
+            )
 
         self._cache = (ollama_tools, routes, now, server_health)
         return ollama_tools, routes, server_health
@@ -349,7 +509,14 @@ class McpHub:
         raise KeyError(f"Unknown MCP tool: {prefixed_name!r}")
 
     async def invoke_tool(self, prefixed_name: str, arguments: dict[str, Any]) -> str:
+        from . import mcp_store
+
         entry, tool_name = self._resolve_entry_and_tool(prefixed_name)
+        if not entry.enabled:
+            raise RuntimeError(f"MCP server {entry.id!r} is disabled")
+        tool_filter = await mcp_store.enabled_tool_filter(entry.id)
+        if tool_filter is not None and not tool_filter.get(tool_name, True):
+            raise RuntimeError(f"MCP tool {prefixed_name!r} is disabled in catalog")
 
         params = StdioServerParameters(
             command=entry.command,

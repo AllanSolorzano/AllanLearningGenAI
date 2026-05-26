@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from .ollama_service import OLLAMA_HOST
+from .ollama_service import get_ollama_host
 
 
 def extract_json_object(raw: str) -> dict[str, Any]:
@@ -40,7 +40,7 @@ async def ollama_chat_json(
     messages: list[dict[str, Any]],
 ) -> dict[str, Any]:
     response = await client.post(
-        f"{OLLAMA_HOST}/api/chat",
+        f"{get_ollama_host()}/api/chat",
         json={
             "model": model,
             "messages": messages,
@@ -64,7 +64,7 @@ async def ollama_chat_text(
     messages: list[dict[str, Any]],
 ) -> str:
     response = await client.post(
-        f"{OLLAMA_HOST}/api/chat",
+        f"{get_ollama_host()}/api/chat",
         json={"model": model, "messages": messages, "stream": False},
         timeout=httpx.Timeout(600.0, connect=10.0),
     )

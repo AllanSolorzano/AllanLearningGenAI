@@ -16,8 +16,15 @@ from .mcp_hub import get_default_hub
 
 logger = logging.getLogger(__name__)
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
 DEFAULT_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+
+
+def get_ollama_host() -> str:
+    return os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
+
+
+# Back-compat for imports that expect a module-level host string.
+OLLAMA_HOST = get_ollama_host()
 
 
 def log_chat_request(
@@ -95,14 +102,29 @@ def _messages_for_non_tool_model(messages_any: list[dict[str, Any]]) -> list[dic
     return plain
 
 
+def _chat_options(temperature: float | None) -> dict[str, Any]:
+    opts: dict[str, Any] = {}
+    if temperature is not None:
+        opts["temperature"] = float(temperature)
+    return opts
+
+
 async def post_chat(
     client: httpx.AsyncClient,
     model: str,
     messages: list[dict[str, Any]],
+    *,
+    temperature: float | None = None,
 ) -> str:
+    payload: dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        **_chat_options(temperature),
+    }
     response = await client.post(
-        f"{OLLAMA_HOST}/api/chat",
-        json={"model": model, "messages": messages, "stream": False},
+        f"{get_ollama_host()}/api/chat",
+        json=payload,
         timeout=httpx.Timeout(600.0, connect=10.0),
     )
     response.raise_for_status()
@@ -122,18 +144,23 @@ async def _chat_with_tools_loop(
     *,
     session_id: str | None,
     persist_model: str,
+    temperature: float | None = None,
+    max_tool_rounds: int | None = None,
 ) -> str:
-    max_rounds = int(os.environ.get("OLLAMA_TOOLS_MAX_ROUNDS", "12"))
+    max_rounds = max_tool_rounds if max_tool_rounds is not None else int(
+        os.environ.get("OLLAMA_TOOLS_MAX_ROUNDS", "12")
+    )
     hub = _hub()
     sid = (session_id or "").strip() or None
     for _ in range(max_rounds):
         response = await client.post(
-            f"{OLLAMA_HOST}/api/chat",
+            f"{get_ollama_host()}/api/chat",
             json={
                 "model": model,
                 "messages": messages,
                 "tools": tools,
                 "stream": False,
+                **_chat_options(temperature),
             },
             timeout=httpx.Timeout(600.0, connect=10.0),
         )
@@ -185,7 +212,7 @@ async def _chat_with_tools_loop(
 async def list_model_names() -> list[str]:
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{OLLAMA_HOST}/api/tags",
+            f"{get_ollama_host()}/api/tags",
             timeout=httpx.Timeout(30.0, connect=10.0),
         )
         response.raise_for_status()
@@ -208,6 +235,9 @@ async def chat_with_optional_session(
     *,
     use_mcp_tools: bool = False,
     use_agent_pipeline: bool = False,
+    temperature: float | None = None,
+    max_tool_rounds: int | None = None,
+    plan_execution_enabled: bool = True,
 ) -> ChatTurnResult:
     use_model = (model or DEFAULT_MODEL).strip()
     sid = (session_id or "").strip()
@@ -259,6 +289,7 @@ async def chat_with_optional_session(
                 system_policy=system,
                 root_message_id=user_message_id,
                 orchestration_correlation_id=orch_corr,
+                plan_execution_enabled=plan_execution_enabled,
             )
         elif use_tools and tools:
             reply = await _chat_with_tools_loop(
@@ -268,10 +299,14 @@ async def chat_with_optional_session(
                 tools,
                 session_id=sid,
                 persist_model=use_model,
+                temperature=temperature,
+                max_tool_rounds=max_tool_rounds,
             )
         else:
             plain = _messages_for_non_tool_model(messages_any)
-            reply = await post_chat(client, use_model, plain)
+            reply = await post_chat(
+                client, use_model, plain, temperature=temperature
+            )
 
     if sid and user_message_id is None:
         await database.append_message(sid, "user", message, None)

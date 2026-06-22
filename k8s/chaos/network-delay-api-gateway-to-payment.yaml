@@ -1,4 +1,4 @@
-# WARNING: This injects latency from api-gateway pods toward payment-service. Run only during an approved GameDay.
+# WARNING: This injects latency from api-gateway pods toward payment-service. Run only during an approved Arena exercise.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: NetworkChaos
 metadata:

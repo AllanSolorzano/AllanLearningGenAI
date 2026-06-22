@@ -16,15 +16,6 @@ rules:
       - watch
       - create
       - delete
-  - apiGroups:
-      - ""
-    resources:
-      - pods
-      - events
-    verbs:
-      - get
-      - list
-      - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -39,34 +30,3 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: chaos-executor
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: chaos-system-observer
-  namespace: chaos-system
-rules:
-  - apiGroups:
-      - chaos-mesh.org
-    resources:
-      - podchaos
-      - networkchaos
-      - stresschaos
-    verbs:
-      - get
-      - list
-      - watch
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: chaos-executor-system-observer
-  namespace: chaos-system
-subjects:
-  - kind: ServiceAccount
-    name: chaos-executor-sa
-    namespace: ai-agents
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: chaos-system-observer

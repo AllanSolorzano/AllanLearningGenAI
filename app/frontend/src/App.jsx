@@ -21,7 +21,7 @@ export default function App() {
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState({ items: [], total_cents: 0 });
   const [orders, setOrders] = useState([]);
-  const [message, setMessage] = useState('Ready for steady-state checks.');
+  const [message, setMessage] = useState('ResilienceMart is ready for steady-state checks.');
   const [loading, setLoading] = useState(false);
   const [latencyMs, setLatencyMs] = useState(750);
   const [errorRate, setErrorRate] = useState(0.25);
@@ -64,8 +64,8 @@ export default function App() {
     <main className="shell">
       <section className="status-bar" aria-label="Store status">
         <div>
-          <p className="eyebrow">AI Chaos GameDay</p>
-          <h1>Steady-State Store</h1>
+          <p className="eyebrow">AI Chaos Arena 2026</p>
+          <h1>ResilienceMart</h1>
         </div>
         <div className="status-pill">
           <span>{cartCount}</span>
@@ -126,7 +126,7 @@ export default function App() {
           </div>
 
           <div className="faults">
-            <h2>Fault Controls</h2>
+            <h2>Gateway Fault Controls</h2>
             <label>
               Latency ms
               <input

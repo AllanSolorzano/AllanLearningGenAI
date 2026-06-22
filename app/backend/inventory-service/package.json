@@ -1,8 +1,8 @@
 {
-  "name": "chaos-payment-service",
+  "name": "chaos-inventory-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Mock payment service for the AI Chaos GameDay microservice demo.",
+  "description": "Inventory service for the ResilienceMart AI Chaos Arena platform.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository builds a bounded, production-like GameDay environment on AWS EKS. The platform separates infrastructure provisioning, GitOps deployment, application runtime, observability, chaos experiments, and AI-agent access boundaries.
+This repository builds the ResilienceMart platform for AI Chaos Arena 2026: a bounded, production-like GameDay environment on AWS EKS. The platform separates infrastructure provisioning, GitOps deployment, application runtime, observability, chaos experiments, and AI-agent access boundaries.
 
 ## AWS
 
@@ -39,7 +39,7 @@ The platform folder includes metrics-server for HPA and a gp3 StorageClass for P
 
 ## Application
 
-The app is a small PERN store split into service boundaries useful for GameDay exercises:
+ResilienceMart is a small PERN store split into service boundaries useful for Arena exercises:
 
 - `frontend`: React/Vite UI served by Nginx.
 - `api-gateway`: BFF, cart state, checkout orchestration, and public API surface.
@@ -47,6 +47,8 @@ The app is a small PERN store split into service boundaries useful for GameDay e
 - `payment-service`: mock payment authorization with persistent payment records.
 - `order-service`: order creation, order lookup, and order persistence.
 - `postgres`: shared demo database for products, inventory, orders, order items, and payments.
+
+In the repository, backend source code lives under `app/backend/`. That folder is only source organization; it is not a deployed service. The deployed backend workloads are the individual microservices.
 
 Checkout flow:
 
@@ -59,7 +61,7 @@ Checkout flow:
 7. `order-service` stores the order and order items in PostgreSQL.
 8. `api-gateway` returns success or a graceful failure.
 
-If a downstream step fails after stock has been reserved, `api-gateway` asks `inventory-service` to release the reserved quantities. That keeps payment-failure GameDays from silently draining demo inventory.
+If a downstream step fails after stock has been reserved, `api-gateway` asks `inventory-service` to release the reserved quantities. That keeps payment-failure exercises from silently draining demo inventory.
 
 ## Observability
 
@@ -82,7 +84,7 @@ Argo CD manifests use an app-of-apps pattern:
 
 Replace the placeholder `repoURL` values before relying on GitOps sync.
 
-## GameDay Overlay
+## Arena Overlay
 
 The `gameday` overlay intentionally introduces safe weaknesses:
 
@@ -115,6 +117,7 @@ AI-agent RBAC uses Role and RoleBinding objects instead of cluster-admin:
 
 - discovery and planner accounts get read-only access to `chaos-app`.
 - observer gets read-only access to workload status, events, and log references.
-- executor can create/delete limited Chaos Mesh experiment CRs in the intended namespaces.
+- executor can get/list/watch/create/delete limited Chaos Mesh experiment CRs in `chaos-app`.
+- participant agents do not receive access to `argocd`, `dynatrace`, `chaos-system`, or `kube-system`.
 
 See `docs/rbac-security-model.md` for the permission model.

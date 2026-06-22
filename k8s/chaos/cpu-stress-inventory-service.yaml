@@ -1,4 +1,4 @@
-# WARNING: This consumes CPU in inventory-service pods. Run only during an approved GameDay.
+# WARNING: This consumes CPU in inventory-service pods. Run only during an approved Arena exercise.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: StressChaos
 metadata:

@@ -129,7 +129,7 @@ function faultInjectionMiddleware(req, res, next) {
         await sleep(faultState.latencyMs);
       }
       if (faultState.errorRate > 0 && Math.random() < faultState.errorRate) {
-        const error = new Error('injected GameDay error');
+        const error = new Error('injected Arena fault');
         error.statusCode = 503;
         error.publicMessage = 'injected_fault';
         throw error;

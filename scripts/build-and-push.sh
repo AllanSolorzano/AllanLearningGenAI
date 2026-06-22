@@ -26,16 +26,16 @@ aws ecr get-login-password --region "$REGION" \
   | docker login --username AWS --password-stdin "${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
 
 echo "Building api-gateway image..."
-docker build -t "${API_GATEWAY_REPO}:${IMAGE_TAG}" -t "${API_GATEWAY_REPO}:latest" "$ROOT_DIR/app/api-gateway"
+docker build -t "${API_GATEWAY_REPO}:${IMAGE_TAG}" -t "${API_GATEWAY_REPO}:latest" "$ROOT_DIR/app/backend/api-gateway"
 
 echo "Building order-service image..."
-docker build -t "${ORDER_SERVICE_REPO}:${IMAGE_TAG}" -t "${ORDER_SERVICE_REPO}:latest" "$ROOT_DIR/app/order-service"
+docker build -t "${ORDER_SERVICE_REPO}:${IMAGE_TAG}" -t "${ORDER_SERVICE_REPO}:latest" "$ROOT_DIR/app/backend/order-service"
 
 echo "Building inventory-service image..."
-docker build -t "${INVENTORY_SERVICE_REPO}:${IMAGE_TAG}" -t "${INVENTORY_SERVICE_REPO}:latest" "$ROOT_DIR/app/inventory-service"
+docker build -t "${INVENTORY_SERVICE_REPO}:${IMAGE_TAG}" -t "${INVENTORY_SERVICE_REPO}:latest" "$ROOT_DIR/app/backend/inventory-service"
 
 echo "Building payment-service image..."
-docker build -t "${PAYMENT_SERVICE_REPO}:${IMAGE_TAG}" -t "${PAYMENT_SERVICE_REPO}:latest" "$ROOT_DIR/app/payment-service"
+docker build -t "${PAYMENT_SERVICE_REPO}:${IMAGE_TAG}" -t "${PAYMENT_SERVICE_REPO}:latest" "$ROOT_DIR/app/backend/payment-service"
 
 echo "Building frontend image..."
 docker build -t "${FRONTEND_REPO}:${IMAGE_TAG}" -t "${FRONTEND_REPO}:latest" "$ROOT_DIR/app/frontend"

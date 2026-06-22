@@ -17,7 +17,7 @@ services:
 
   api-gateway:
     build:
-      context: ./api-gateway
+      context: ./backend/api-gateway
     environment:
       NODE_ENV: development
       PORT: 8080
@@ -43,7 +43,7 @@ services:
 
   inventory-service:
     build:
-      context: ./inventory-service
+      context: ./backend/inventory-service
     environment:
       NODE_ENV: development
       PORT: 8080
@@ -64,7 +64,7 @@ services:
 
   order-service:
     build:
-      context: ./order-service
+      context: ./backend/order-service
     environment:
       NODE_ENV: development
       PORT: 8080
@@ -85,7 +85,7 @@ services:
 
   payment-service:
     build:
-      context: ./payment-service
+      context: ./backend/payment-service
     environment:
       NODE_ENV: development
       PORT: 8080

@@ -1,8 +1,8 @@
 {
-  "name": "chaos-inventory-service",
+  "name": "chaos-order-service",
   "version": "0.1.0",
   "private": true,
-  "description": "Inventory service for the AI Chaos GameDay microservice demo.",
+  "description": "Order service for the ResilienceMart AI Chaos Arena platform.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

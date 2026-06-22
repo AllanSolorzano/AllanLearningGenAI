@@ -6,16 +6,34 @@ metadata:
 data:
   scope.yaml: |
     namespaces:
-      application: chaos-app
-      chaos: chaos-system
+      allowed:
+        - chaos-app
+      denied:
+        - kube-system
+        - argocd
+        - dynatrace
+        - chaos-system
     guardrails:
       require_human_approval_for:
         - create-chaos-experiment
         - delete-chaos-experiment
       denied_actions:
         - cluster-admin
+        - namespace-delete
+        - workload-delete
+        - service-delete
+        - ingress-delete
+        - secret-read
+        - secret-delete
         - node-delete
         - persistent-volume-delete
+        - persistent-volume-claim-delete
+        - database-delete
+        - iam-modify
+        - vpc-modify
+        - security-group-modify
+        - route53-modify
+        - dynatrace-modify
     objectives:
       - discover current steady-state
       - plan bounded chaos experiments

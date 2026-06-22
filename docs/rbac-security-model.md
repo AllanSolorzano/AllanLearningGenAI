@@ -3,9 +3,10 @@
 ## Principles
 
 - No AI-agent service account receives cluster-admin.
-- Permissions are namespace-scoped with Role and RoleBinding.
+- Participant permissions are scoped to `chaos-app` with Role and RoleBinding.
 - Chaos execution is separated from discovery, planning, and observation.
 - Sample chaos experiments are bounded to `chaos-app`.
+- Participant agents do not receive access to `kube-system`, `argocd`, `dynatrace`, or `chaos-system`.
 
 ## Service Accounts
 
@@ -34,9 +35,12 @@ Permissions: same read-only role as discovery. It cannot create experiments.
 
 Namespace: `ai-agents`
 
-Purpose: observe status, events, and logs during GameDay.
+Purpose: observe status, events, and logs during Arena challenges.
 
-Permissions: same read-only role as discovery, plus namespace-scoped pod metrics through `metrics.k8s.io`.
+Permissions:
+
+- get/list/watch pods, pod logs, and events
+- get/list/watch pod metrics through `metrics.k8s.io`
 
 ### `chaos-executor-sa`
 
@@ -47,18 +51,17 @@ Purpose: execute approved Chaos Mesh experiments.
 Permissions in `chaos-app`:
 
 - get/list/watch/create/delete `podchaos`, `networkchaos`, `stresschaos`
-- get/list/watch pods and events
-
-Permissions in `chaos-system`:
-
-- get/list/watch Chaos Mesh experiment resources for status visibility
+- no pod, deployment, service, secret, ingress, PVC, or namespace delete permissions
 
 ## Human Approval Boundary
 
 The included `gameday-agent-config` ConfigMap declares guardrails:
 
 - require human approval before creating or deleting chaos experiments
+- deny out-of-scope namespace access
 - deny cluster-admin
+- deny workload deletion
+- deny secret access
 - deny node deletion
 - deny persistent volume deletion
 

@@ -1,0 +1,22 @@
+hypothesis: inventory-service should remain available after one pod failure.
+target:
+  namespace: chaos-app
+  service: inventory-service
+experiment_type: pod-kill
+duration: 30s
+blast_radius: one inventory-service pod in chaos-app
+success_criteria:
+  - GET /api/products remains available
+  - inventory-service deployment returns to desired ready replicas
+abort_criteria:
+  - checkout 5xx rate rises above agreed threshold
+  - experiment targets more than one pod
+rollback: delete the PodChaos experiment
+observability_plan:
+  - metrics
+  - logs
+  - events
+  - traces
+approval:
+  required: true
+  approved_by: ""

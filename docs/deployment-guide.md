@@ -1,5 +1,7 @@
 # Deployment Guide
 
+This guide is for platform organizers or builders who own the AWS sandbox. Participants in AI Chaos Arena 2026 should use the namespace-scoped credentials, observability access, and approved chaos tools provided for the event.
+
 ## Happy Path Script
 
 For a clean AWS account, configured AWS CLI credentials, and a Git repo with an `origin` remote:
@@ -76,8 +78,8 @@ Because the root app reads those files from Git, commit and push the repo URL ch
 
 ```bash
 git add k8s/argocd k8s/app/overlays terraform/.terraform.lock.hcl \
-  app/api-gateway/package-lock.json app/order-service/package-lock.json \
-  app/inventory-service/package-lock.json app/payment-service/package-lock.json \
+  app/backend/api-gateway/package-lock.json app/backend/order-service/package-lock.json \
+  app/backend/inventory-service/package-lock.json app/backend/payment-service/package-lock.json \
   app/frontend/package-lock.json
 git commit -m "Configure GitOps deployment"
 git push

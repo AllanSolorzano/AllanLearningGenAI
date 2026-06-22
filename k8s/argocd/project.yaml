@@ -4,7 +4,7 @@ metadata:
   name: ai-chaos-gameday
   namespace: argocd
 spec:
-  description: AI-agent Chaos Engineering GameDay platform
+  description: AI Chaos Arena 2026 platform
   sourceRepos:
     # TODO: Replace with your Git repository URL after publishing this repo.
     - https://github.com/REPLACE_ME/ai-chaos-gameday-platform.git
@@ -63,6 +63,6 @@ spec:
       kind: DynaKube
   roles:
     - name: read-only
-      description: Read-only visibility for GameDay observers.
+      description: Read-only visibility for Arena observers.
       policies:
         - p, proj:ai-chaos-gameday:read-only, applications, get, ai-chaos-gameday/*, allow

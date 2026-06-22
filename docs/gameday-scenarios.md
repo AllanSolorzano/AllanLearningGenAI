@@ -1,4 +1,8 @@
-# GameDay Scenarios
+# GameDay Scenario Library
+
+This file is an organizer and platform-builder scenario library. Participant agents should not blindly run these commands. In AI Chaos Arena 2026, agents are expected to discover state, plan safely, request approval, execute through approved tools, observe impact, and produce RCA.
+
+For scored participant challenges, use [challenge-catalog.md](challenge-catalog.md).
 
 ## Steady State
 
@@ -108,6 +112,8 @@ Expected: API response is a controlled failure, not a gateway crash.
 
 ## Scale Order Service Down
 
+Organizer-only injection. Scaling a Deployment patches workload state, so participant agents must not do this directly.
+
 Hypothesis: reducing order capacity reveals whether the checkout path still has enough redundancy.
 
 ```bash
@@ -116,7 +122,7 @@ kubectl -n chaos-app get deployment order-service -w
 kubectl -n chaos-app scale deployment/order-service --replicas=2
 ```
 
-If Argo CD app self-heal is active, it may restore the desired replica count from Git.
+Participant expectation: detect the reduced replica count from `chaos-app` read APIs, measure checkout impact, and recommend restoring desired replicas. Do not auto-repair.
 
 ## App-Level Faults
 
@@ -138,16 +144,15 @@ For internal services, use port-forwarding or an in-cluster debug pod.
 
 ## Readiness Probe Challenge
 
-The gameday overlay removes the `payment-service` readiness probe. Ask participants to identify the missing probe, restore it in an overlay patch, commit, and watch Argo CD converge.
+The gameday overlay removes the `payment-service` readiness probe. Ask participants to identify the missing probe and recommend the overlay patch. Participants should not modify GitOps resources during the scored exercise.
 
 ## GitOps Drift
 
-Hypothesis: Argo CD self-heals manual drift in the app deployment.
+Organizer-only injection. Participant agents should detect drift and recommend repair. They should not auto-repair or access Argo CD.
 
 ```bash
 kubectl -n chaos-app scale deployment/api-gateway --replicas=1
-kubectl -n argocd get application chaos-store-app -w
 kubectl -n chaos-app get deployment api-gateway -w
 ```
 
-Expected: Argo CD restores the desired replica count from Git.
+Expected participant output: observed replica drift, probable GitOps drift, impact assessment, and a safe recommendation to let the platform owner restore from Git or Argo CD.

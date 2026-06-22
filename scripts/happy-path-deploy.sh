@@ -59,7 +59,7 @@ ensure_gitops_ready() {
     if git -C "$ROOT_DIR" diff --cached --quiet; then
       echo "No Git changes to commit."
     else
-      git -C "$ROOT_DIR" commit -m "Deploy AI chaos GameDay platform"
+      git -C "$ROOT_DIR" commit -m "Deploy AI Chaos Arena platform"
     fi
     git -C "$ROOT_DIR" push -u origin "$branch"
     return

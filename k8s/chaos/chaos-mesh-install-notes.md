@@ -12,4 +12,4 @@ helm upgrade --install chaos-mesh chaos-mesh/chaos-mesh \
   --set chaosDaemon.socketPath=/run/containerd/containerd.sock
 ```
 
-The sample experiments in this folder are intentionally not included in `kustomization.yaml`; apply them one at a time during a controlled GameDay.
+The sample experiments in this folder are intentionally not included in `kustomization.yaml`; apply them one at a time during a controlled Arena exercise.

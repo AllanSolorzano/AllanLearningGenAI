@@ -1,8 +1,10 @@
-# AI Chaos GameDay Platform
+# AI Chaos Arena 2026 Platform
 
-Production-like, demo-safe infrastructure and application code for an AI-agent Chaos Engineering GameDay platform on AWS EKS.
+Production-like, demo-safe infrastructure and application code for **AI Chaos Arena 2026**, an AI SRE Engineering Competition on AWS EKS.
 
-The business app is intentionally small. The point is the platform: Terraform, EKS managed node groups, ECR, IRSA, Argo CD, Dynatrace-ready manifests, bounded chaos experiments, and least-privilege AI-agent RBAC.
+The story application is **ResilienceMart**, a deliberately small PERN microservices store. The point is the platform and the agent challenge: Terraform, EKS managed node groups, ECR, IRSA, Argo CD, Dynatrace-ready manifests, bounded chaos experiments, least-privilege AI-agent RBAC, and competition materials for teams building AI SRE agents.
+
+Teams are evaluated on infrastructure understanding, agent architecture, safe experimentation, observability usage, RCA quality, remediation quality, reasoning, and guardrails. They are not evaluated on how much damage they can create.
 
 ## Architecture
 
@@ -31,7 +33,17 @@ Infrastructure and platform components:
 - Chaos Mesh examples for pod kill, network delay, CPU stress, memory stress, and payment failure.
 - AI-agent service accounts scoped to read-only, planning, observing, or bounded chaos execution.
 
-See [docs/architecture.md](docs/architecture.md) for the full layout.
+Source layout note: `app/backend/` is a grouping folder for backend microservices. There is no separate Kubernetes workload named `backend`.
+
+Competition and platform docs:
+
+- [AI Chaos Arena 2026](docs/ai-chaos-arena-2026.md)
+- [Agent Team Design Guide](docs/agent-team-design.md)
+- [Participant Guardrails](docs/participant-guardrails.md)
+- [Challenge Catalog](docs/challenge-catalog.md)
+- [Scoring Rubric](docs/scoring-rubric.md)
+- [Agent Starter Kit](agents/starter-kit/README.md)
+- [Architecture](docs/architecture.md)
 
 ## AWS Cost Warning
 
@@ -69,6 +81,8 @@ export ARGOCD_REPO_URL=https://github.com/YOUR_ORG/ai-chaos-gameday-platform.git
 Use `make configure-argocd` to replace the placeholder `repoURL` values in `k8s/argocd/*.yaml` before running the root app.
 
 ## Deploy
+
+The commands below are for platform organizers or builders who own the AWS sandbox. Participant agents should use the namespace-scoped credentials and tools provided for the event, not Terraform or cluster-admin access.
 
 ### Happy Path Script
 
@@ -123,8 +137,8 @@ The script is idempotent where the underlying systems support it: Terraform reco
 
    ```bash
    git add k8s/argocd k8s/app/overlays terraform/.terraform.lock.hcl \
-     app/api-gateway/package-lock.json app/order-service/package-lock.json \
-     app/inventory-service/package-lock.json app/payment-service/package-lock.json \
+     app/backend/api-gateway/package-lock.json app/backend/order-service/package-lock.json \
+     app/backend/inventory-service/package-lock.json app/backend/payment-service/package-lock.json \
      app/frontend/package-lock.json
    git commit -m "Configure GitOps deployment"
    git push
@@ -176,6 +190,28 @@ Service-to-service endpoints stay inside the cluster:
 - `inventory-service`: `GET /products`, `GET /inventory/:productId`, `POST /inventory/reserve`
 - `payment-service`: `POST /payment/authorize`
 
+## AI SRE Competition Workflow
+
+Participants should build an AI SRE Team, not a shell-script collection. Minimum agent roles:
+
+- Discovery Agent: Kubernetes/service discovery, dependency mapping, resource inventory.
+- Chaos Planning Agent: hypotheses, experiment design, blast radius, rollback.
+- Execution Agent: approved chaos execution only.
+- Observer Agent: metrics, logs, events, traces, and impact measurement.
+- RCA Agent: root cause, timeline, business impact, and remediation.
+
+Participant guardrails:
+
+- Kubernetes scope is `chaos-app`.
+- No `cluster-admin`.
+- No AWS `AdministratorAccess`.
+- No access to `kube-system`, `argocd`, `dynatrace`, or `chaos-system`.
+- No namespace, PVC, database, service, ingress, secret, IAM, VPC, security group, Route53, or Dynatrace modification.
+
+See [docs/participant-guardrails.md](docs/participant-guardrails.md) and [docs/scoring-rubric.md](docs/scoring-rubric.md).
+
+A framework-neutral Python scaffold is available in [agents/starter-kit](agents/starter-kit/README.md). It provides planning records, guardrail validation, and agent role interfaces without hardcoding challenge solutions.
+
 ## Connect Dynatrace
 
 1. Install Dynatrace Operator using the current Dynatrace-supported method.
@@ -204,6 +240,8 @@ kubectl delete -f k8s/chaos/break-payment-service.yaml --ignore-not-found
 ```
 
 See [docs/gameday-scenarios.md](docs/gameday-scenarios.md).
+
+Arena challenge descriptions are in [docs/challenge-catalog.md](docs/challenge-catalog.md).
 
 ## Clean Up
 

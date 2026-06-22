@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "React frontend for the AI-agent Chaos Engineering GameDay demo platform.",
+  "description": "React frontend for the ResilienceMart AI Chaos Arena platform.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",

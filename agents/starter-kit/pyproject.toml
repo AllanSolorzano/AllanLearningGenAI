@@ -1,0 +1,9 @@
+[project]
+name = "ai-chaos-arena-agent-starter"
+version = "0.1.0"
+description = "Framework-neutral AI SRE agent starter kit for AI Chaos Arena 2026."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

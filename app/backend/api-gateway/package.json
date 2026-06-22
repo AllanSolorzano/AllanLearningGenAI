@@ -2,7 +2,7 @@
   "name": "chaos-api-gateway",
   "version": "0.1.0",
   "private": true,
-  "description": "BFF/API Gateway for the AI Chaos GameDay microservice demo.",
+  "description": "BFF/API Gateway for the ResilienceMart AI Chaos Arena platform.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"

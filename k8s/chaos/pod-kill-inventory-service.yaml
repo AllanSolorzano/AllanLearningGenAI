@@ -1,4 +1,4 @@
-# WARNING: This intentionally kills one inventory-service pod in chaos-app. Run only during an approved GameDay.
+# WARNING: This intentionally kills one inventory-service pod in chaos-app. Run only during an approved Arena exercise.
 apiVersion: chaos-mesh.org/v1alpha1
 kind: PodChaos
 metadata:

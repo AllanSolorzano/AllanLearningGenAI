@@ -1,0 +1,26 @@
+apiVersion: dynatrace.com/v1beta6
+kind: DynaKube
+metadata:
+  name: gameday
+  namespace: dynatrace
+spec:
+  # TODO: Replace ENVIRONMENT_ID and region/managed URL.
+  apiUrl: "https://ENVIRONMENT_ID.live.dynatrace.com/api"
+  tokens: dynakube
+  oneAgent:
+    cloudNativeFullStack:
+      namespaceSelector:
+        matchLabels:
+          dynatrace-injection: enabled
+  activeGate:
+    capabilities:
+      - routing
+      - kubernetes-monitoring
+      - metrics-ingest
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi

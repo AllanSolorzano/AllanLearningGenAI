@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-config
+data:
+  PAYMENT_FALLBACK_ENABLED: "true"
+  ORDER_SERVICE_TIMEOUT_MS: "3000"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=ai-chaos-gameday,deployment.environment=dev"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-config
+data:
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=ai-chaos-gameday,deployment.environment=dev"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-service-config
+data:
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=ai-chaos-gameday,deployment.environment=dev"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-config
+data:
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=ai-chaos-gameday,deployment.environment=dev"

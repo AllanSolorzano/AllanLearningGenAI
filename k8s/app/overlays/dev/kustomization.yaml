@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+patches:
+  - path: patch.yaml
+images:
+  - name: chaos-api-gateway
+    newName: example.com/replace-me/chaos-api-gateway
+    newTag: latest
+  - name: chaos-order-service
+    newName: example.com/replace-me/chaos-order-service
+    newTag: latest
+  - name: chaos-inventory-service
+    newName: example.com/replace-me/chaos-inventory-service
+    newTag: latest
+  - name: chaos-payment-service
+    newName: example.com/replace-me/chaos-payment-service
+    newTag: latest
+  - name: chaos-frontend
+    newName: example.com/replace-me/chaos-frontend
+    newTag: latest

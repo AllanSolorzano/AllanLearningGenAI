@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inventory-service-config
+data:
+  NODE_ENV: "production"
+  PORT: "8080"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"
+  DB_NAME: "chaos_store"
+  OTEL_SERVICE_NAME: "chaos-inventory-service"
+  OTEL_RESOURCE_ATTRIBUTES: "service.namespace=ai-chaos-gameday,deployment.environment=dev"
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""

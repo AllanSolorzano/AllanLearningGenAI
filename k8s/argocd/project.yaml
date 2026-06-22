@@ -1,0 +1,68 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: ai-chaos-gameday
+  namespace: argocd
+spec:
+  description: AI-agent Chaos Engineering GameDay platform
+  sourceRepos:
+    # TODO: Replace with your Git repository URL after publishing this repo.
+    - https://github.com/REPLACE_ME/ai-chaos-gameday-platform.git
+  destinations:
+    - namespace: chaos-app
+      server: https://kubernetes.default.svc
+    - namespace: dynatrace
+      server: https://kubernetes.default.svc
+    - namespace: chaos-system
+      server: https://kubernetes.default.svc
+    - namespace: ai-agents
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: StorageClass
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: batch
+      kind: Job
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: chaos-mesh.org
+      kind: PodChaos
+    - group: chaos-mesh.org
+      kind: NetworkChaos
+    - group: chaos-mesh.org
+      kind: StressChaos
+    - group: dynatrace.com
+      kind: DynaKube
+  roles:
+    - name: read-only
+      description: Read-only visibility for GameDay observers.
+      policies:
+        - p, proj:ai-chaos-gameday:read-only, applications, get, ai-chaos-gameday/*, allow

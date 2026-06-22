@@ -1,0 +1,8 @@
+# WARNING: This is not a Chaos Mesh CR. Apply manually to test order-service availability with one replica.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  namespace: chaos-app
+spec:
+  replicas: 1

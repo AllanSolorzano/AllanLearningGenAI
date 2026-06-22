@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dynatrace-observability
+  namespace: argocd
+spec:
+  project: ai-chaos-gameday
+  source:
+    # TODO: Replace with your Git repository URL after publishing this repo.
+    repoURL: https://github.com/REPLACE_ME/ai-chaos-gameday-platform.git
+    targetRevision: HEAD
+    path: k8s/dynatrace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dynatrace
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

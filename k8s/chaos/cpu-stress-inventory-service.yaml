@@ -1,0 +1,18 @@
+# WARNING: This consumes CPU in inventory-service pods. Run only during an approved GameDay.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: inventory-service-cpu-stress
+  namespace: chaos-app
+spec:
+  mode: one
+  duration: "3m"
+  selector:
+    namespaces:
+      - chaos-app
+    labelSelectors:
+      app.kubernetes.io/name: inventory-service
+  stressors:
+    cpu:
+      workers: 1
+      load: 80

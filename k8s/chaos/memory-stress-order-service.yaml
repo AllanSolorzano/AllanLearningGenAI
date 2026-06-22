@@ -1,0 +1,18 @@
+# WARNING: This consumes memory in order-service pods. Run only during an approved GameDay.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: order-service-memory-stress
+  namespace: chaos-app
+spec:
+  mode: one
+  duration: "3m"
+  selector:
+    namespaces:
+      - chaos-app
+    labelSelectors:
+      app.kubernetes.io/name: order-service
+  stressors:
+    memory:
+      workers: 1
+      size: "128MiB"

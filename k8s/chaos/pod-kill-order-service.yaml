@@ -1,0 +1,15 @@
+# WARNING: This intentionally kills one order-service pod in chaos-app. Run only during an approved GameDay.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: order-service-pod-kill
+  namespace: chaos-app
+spec:
+  action: pod-kill
+  mode: one
+  duration: "30s"
+  selector:
+    namespaces:
+      - chaos-app
+    labelSelectors:
+      app.kubernetes.io/name: order-service

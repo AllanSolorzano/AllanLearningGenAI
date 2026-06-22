@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and adjust values for your account.
+project_name = "ai-chaos-gameday-platform"
+environment  = "dev"
+aws_region   = "us-east-1"
+
+vpc_cidr = "10.42.0.0/16"
+az_count = 3
+
+# Demo-safe cost default is a single NAT Gateway. Use false for production-style
+# one-NAT-per-AZ availability.
+single_nat_gateway = true
+
+kubernetes_version = "1.32"
+
+node_instance_types = ["t3.medium"]
+node_min_size       = 2
+node_desired_size   = 2
+node_max_size       = 5
+
+enable_aws_load_balancer_controller = true
+
+# Optional: pin an exact Helm chart version after testing in your account.
+aws_load_balancer_controller_chart_version = ""
+
+enable_external_dns_irsa       = false
+external_dns_hosted_zone_arns  = []
+enable_dynatrace_irsa          = false

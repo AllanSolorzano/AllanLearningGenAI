@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+# Safe default: keep tenant-specific secrets and DynaKube out of automated sync.
+# After replacing placeholders and installing the Dynatrace Operator CRDs, add:
+#   - secret.yaml
+#   - dynakube.yaml

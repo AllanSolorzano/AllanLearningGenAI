@@ -1,0 +1,27 @@
+# WARNING: This injects latency from api-gateway pods toward payment-service. Run only during an approved GameDay.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: api-gateway-to-payment-delay
+  namespace: chaos-app
+spec:
+  action: delay
+  mode: all
+  duration: "2m"
+  selector:
+    namespaces:
+      - chaos-app
+    labelSelectors:
+      app.kubernetes.io/name: api-gateway
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - chaos-app
+      labelSelectors:
+        app.kubernetes.io/name: payment-service
+  delay:
+    latency: "700ms"
+    correlation: "50"
+    jitter: "100ms"

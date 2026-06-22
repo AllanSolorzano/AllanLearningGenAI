@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chaos-store-app
+  namespace: argocd
+spec:
+  project: ai-chaos-gameday
+  source:
+    # TODO: Replace with your Git repository URL after publishing this repo.
+    repoURL: https://github.com/REPLACE_ME/ai-chaos-gameday-platform.git
+    targetRevision: HEAD
+    path: k8s/app/overlays/gameday
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chaos-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground

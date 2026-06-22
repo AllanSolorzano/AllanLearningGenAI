@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gameday-agent-config
+  namespace: ai-agents
+data:
+  scope.yaml: |
+    namespaces:
+      application: chaos-app
+      chaos: chaos-system
+    guardrails:
+      require_human_approval_for:
+        - create-chaos-experiment
+        - delete-chaos-experiment
+      denied_actions:
+        - cluster-admin
+        - node-delete
+        - persistent-volume-delete
+    objectives:
+      - discover current steady-state
+      - plan bounded chaos experiments
+      - observe service health, events, and metrics
+      - summarize blast radius and rollback

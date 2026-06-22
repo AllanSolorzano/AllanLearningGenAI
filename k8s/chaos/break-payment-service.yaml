@@ -1,0 +1,26 @@
+# WARNING: This breaks api-gateway traffic to payment-service to verify graceful checkout failure.
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: break-payment-service
+  namespace: chaos-app
+spec:
+  action: loss
+  mode: all
+  duration: "2m"
+  selector:
+    namespaces:
+      - chaos-app
+    labelSelectors:
+      app.kubernetes.io/name: api-gateway
+  direction: to
+  target:
+    mode: all
+    selector:
+      namespaces:
+        - chaos-app
+      labelSelectors:
+        app.kubernetes.io/name: payment-service
+  loss:
+    loss: "100"
+    correlation: "100"

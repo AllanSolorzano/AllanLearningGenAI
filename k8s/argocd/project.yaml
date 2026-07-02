@@ -7,7 +7,7 @@ spec:
   description: AI Chaos Arena 2026 platform
   sourceRepos:
     # TODO: Replace with your Git repository URL after publishing this repo.
-    - https://github.com/REPLACE_ME/ai-chaos-gameday-platform.git
+    - https://github.com/AllanSolorzano/AllanLearningGenAI
   destinations:
     - namespace: chaos-app
       server: https://kubernetes.default.svc

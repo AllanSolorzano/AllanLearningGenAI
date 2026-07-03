@@ -23,6 +23,7 @@ spec:
       serviceAccountName: api-gateway-sa
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:

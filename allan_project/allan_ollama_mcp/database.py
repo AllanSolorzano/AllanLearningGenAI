@@ -1,0 +1,639 @@
+"""Async SQLite persistence for chat sessions and messages."""
+
+from __future__ import annotations
+
+import json
+import os
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+import aiosqlite
+
+
+def database_path() -> Path:
+    raw = os.environ.get("MCP_DATABASE_PATH")
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return Path(__file__).resolve().parent.parent / "data" / "app.db"
+
+
+DB_PATH = database_path()
+
+_SCHEMA = """
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id TEXT PRIMARY KEY,
+    title TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    model TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id, id);
+CREATE TABLE IF NOT EXISTS durable_memory_index (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    rel_path TEXT NOT NULL,
+    title TEXT,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_durable_memory_session ON durable_memory_index(session_id, id);
+CREATE TABLE IF NOT EXISTS agent_turn_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    phase TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_turn_session ON agent_turn_log(session_id, id);
+CREATE TABLE IF NOT EXISTS agent_step_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    step_id TEXT NOT NULL,
+    state TEXT NOT NULL,
+    tool_name TEXT,
+    detail_json TEXT,
+    latency_ms INTEGER,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_step_corr ON agent_step_events(session_id, correlation_id, id);
+CREATE TABLE IF NOT EXISTS agent_handoffs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    correlation_id TEXT NOT NULL,
+    status TEXT NOT NULL,
+    detail_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions(id)
+);
+CREATE INDEX IF NOT EXISTS idx_agent_handoffs_session ON agent_handoffs(session_id, id);
+CREATE TABLE IF NOT EXISTS app_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    settings_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
+
+async def _migrate_chat_messages(db: aiosqlite.Connection) -> None:
+    cur = await db.execute("PRAGMA table_info(chat_messages)")
+    rows = await cur.fetchall()
+    cols = {str(r[1]) for r in rows}
+    if "tool_name" not in cols:
+        await db.execute("ALTER TABLE chat_messages ADD COLUMN tool_name TEXT")
+    if "tool_calls_json" not in cols:
+        await db.execute("ALTER TABLE chat_messages ADD COLUMN tool_calls_json TEXT")
+
+
+async def _migrate_chat_correlation(db: aiosqlite.Connection) -> None:
+    cur = await db.execute("PRAGMA table_info(chat_messages)")
+    rows = await cur.fetchall()
+    cols = {str(r[1]) for r in rows}
+    if "correlation_id" not in cols:
+        await db.execute("ALTER TABLE chat_messages ADD COLUMN correlation_id TEXT")
+
+
+async def _migrate_orch_tables(db: aiosqlite.Connection) -> None:
+    from .orch_store import ensure_orch_schema
+
+    await ensure_orch_schema(db)
+
+
+async def _migrate_fts_memory(db: aiosqlite.Connection) -> None:
+    cur = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+    )
+    row = await cur.fetchone()
+    if row is not None:
+        return
+    try:
+        await db.execute(
+            """
+            CREATE VIRTUAL TABLE durable_memory_fts USING fts5(
+                memory_id UNINDEXED,
+                session_id UNINDEXED,
+                rel_path UNINDEXED,
+                title,
+                content,
+                tokenize = 'porter unicode61'
+            )
+            """
+        )
+    except Exception:
+        # Extremely old SQLite builds without FTS5 — skip search index.
+        pass
+
+
+async def init_db() -> None:
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.executescript(_SCHEMA)
+        await _migrate_chat_messages(db)
+        await _migrate_chat_correlation(db)
+        await _migrate_orch_tables(db)
+        await _migrate_fts_memory(db)
+        await _migrate_app_settings(db)
+        await db.commit()
+    from .orch_store import seed_default_policies
+    from .settings_store import apply_runtime_settings, load_app_settings
+
+    await seed_default_policies()
+    apply_runtime_settings(await load_app_settings())
+
+
+async def _migrate_app_settings(db: aiosqlite.Connection) -> None:
+    cur = await db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='app_settings'"
+    )
+    if await cur.fetchone() is not None:
+        return
+    await db.execute(
+        """CREATE TABLE app_settings (
+               id INTEGER PRIMARY KEY CHECK (id = 1),
+               settings_json TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+           )"""
+    )
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def get_session(session_id: str) -> tuple[str, str, str] | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT id, COALESCE(title, ''), created_at FROM chat_sessions WHERE id = ?",
+            (session_id,),
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return None
+    return str(row[0]), str(row[1]), str(row[2])
+
+
+async def session_exists(session_id: str) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT 1 FROM chat_sessions WHERE id = ? LIMIT 1",
+            (session_id,),
+        )
+        row = await cur.fetchone()
+        return row is not None
+
+
+async def create_session(title: str | None = None) -> str:
+    sid = str(uuid.uuid4())
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute(
+            "INSERT INTO chat_sessions (id, title, created_at) VALUES (?, ?, ?)",
+            (sid, (title or "").strip(), _utc_now()),
+        )
+        await db.commit()
+    return sid
+
+
+async def append_message(
+    session_id: str,
+    role: str,
+    content: str,
+    model: str | None = None,
+    *,
+    tool_name: str | None = None,
+    tool_calls_json: str | None = None,
+    correlation_id: str | None = None,
+) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO chat_messages
+               (session_id, role, content, model, created_at, tool_name, tool_calls_json, correlation_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                session_id,
+                role,
+                content,
+                model,
+                _utc_now(),
+                tool_name,
+                tool_calls_json,
+                correlation_id,
+            ),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def fetch_messages_for_model(
+    session_id: str,
+    limit: int,
+) -> list[dict[str, Any]]:
+    """Latest ``limit`` messages, oldest-first, shaped for Ollama (incl. tool / tool_calls)."""
+    limit = max(1, min(limit, 500))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            """WITH recent AS (
+                   SELECT id, role, content, tool_name, tool_calls_json FROM chat_messages
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               )
+               SELECT role, content, tool_name, tool_calls_json FROM recent ORDER BY id ASC""",
+            (session_id, limit),
+        )
+        rows = await cur.fetchall()
+
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        role = str(r["role"])
+        content = str(r["content"] or "")
+        tool_name = r["tool_name"]
+        tc_raw = r["tool_calls_json"]
+        if role == "tool" and tool_name:
+            out.append(
+                {"role": "tool", "tool_name": str(tool_name), "content": content}
+            )
+            continue
+        if role == "assistant" and tc_raw:
+            try:
+                tc = json.loads(str(tc_raw))
+            except json.JSONDecodeError:
+                tc = None
+            msg: dict[str, Any] = {"role": "assistant", "content": content}
+            if isinstance(tc, list) and tc:
+                msg["tool_calls"] = tc
+            out.append(msg)
+            continue
+        out.append({"role": role, "content": content})
+    return out
+
+
+async def list_sessions(limit: int) -> list[tuple[str, str, str, int]]:
+    limit = max(1, min(limit, 200))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT cs.id, COALESCE(cs.title, ''), cs.created_at,
+                      COALESCE(
+                          (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = cs.id),
+                          0
+                      ) AS msg_count
+               FROM chat_sessions cs
+               ORDER BY datetime(cs.created_at) DESC
+               LIMIT ?""",
+            (limit,),
+        )
+        rows = await cur.fetchall()
+    return [(str(r[0]), str(r[1]), str(r[2]), int(r[3] or 0)) for r in rows]
+
+
+async def get_messages_display(
+    session_id: str,
+    limit: int,
+) -> list[tuple[int, str, str, str, str | None, str | None, str | None]]:
+    """Latest ``limit`` messages: id, role, content, created_at, model, tool_name, tool_calls_json."""
+    limit = max(1, min(limit, 500))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """WITH recent AS (
+                   SELECT id, role, content, created_at, model, tool_name, tool_calls_json
+                   FROM chat_messages
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               )
+               SELECT id, role, content, created_at, model, tool_name, tool_calls_json
+               FROM recent ORDER BY id ASC""",
+            (session_id, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, str, str, str | None, str | None, str | None]] = []
+    for r in rows:
+        out.append(
+            (
+                int(r[0]),
+                str(r[1]),
+                str(r[2]),
+                str(r[3]),
+                r[4],
+                r[5],
+                r[6],
+            )
+        )
+    return out
+
+
+async def insert_durable_memory_meta(
+    session_id: str | None,
+    rel_path: str,
+    title: str | None,
+) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO durable_memory_index (session_id, rel_path, title, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (session_id, rel_path, (title or "").strip(), _utc_now()),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def insert_durable_memory_fts(
+    memory_id: int,
+    session_id: str | None,
+    rel_path: str,
+    title: str,
+    content: str,
+) -> None:
+    sid = session_id if session_id else ""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+        )
+        if await cur.fetchone() is None:
+            return
+        await db.execute(
+            """INSERT INTO durable_memory_fts
+               (memory_id, session_id, rel_path, title, content)
+               VALUES (?, ?, ?, ?, ?)""",
+            (memory_id, sid, rel_path, title, content),
+        )
+        await db.commit()
+
+
+async def search_durable_memory_fts(
+    session_id: str,
+    fts_match_clause: str,
+    *,
+    limit: int = 8,
+) -> list[tuple[int, str, str, str, str]]:
+    """Return rows: memory_id, rel_path, title, snippet, session_scope."""
+    limit = max(1, min(limit, 50))
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='durable_memory_fts'"
+        )
+        if await cur.fetchone() is None:
+            return []
+        try:
+            qcur = await db.execute(
+                """SELECT memory_id, rel_path, title,
+                          snippet(durable_memory_fts, 4, '[', ']', '…', 24),
+                          session_id
+                   FROM durable_memory_fts
+                   WHERE durable_memory_fts MATCH ?
+                     AND (session_id = '' OR session_id = ?)
+                   LIMIT ?""",
+                (fts_match_clause, session_id, limit),
+            )
+            rows = await qcur.fetchall()
+        except Exception:
+            return []
+    return [
+        (int(r[0]), str(r[1]), str(r[2] or ""), str(r[3] or ""), str(r[4] or ""))
+        for r in rows
+    ]
+
+
+async def append_agent_turn_log(
+    session_id: str,
+    phase: str,
+    payload: dict[str, Any],
+) -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_turn_log (session_id, phase, payload_json, created_at)
+               VALUES (?, ?, ?, ?)""",
+            (session_id, phase, json.dumps(payload, default=str), _utc_now()),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def append_agent_step_event(
+    session_id: str,
+    correlation_id: str,
+    step_id: str,
+    state: str,
+    *,
+    tool_name: str | None = None,
+    detail: dict[str, Any] | None = None,
+    latency_ms: int | None = None,
+) -> int:
+    """Append a lifecycle row: queued | running | succeeded | failed | waiting | deferred."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_step_events
+               (session_id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                session_id,
+                correlation_id,
+                step_id,
+                state,
+                tool_name,
+                json.dumps(detail or {}, default=str),
+                latency_ms,
+                _utc_now(),
+            ),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def list_agent_turn_logs(
+    session_id: str,
+    *,
+    limit: int = 120,
+) -> list[tuple[int, str, dict[str, Any], str]]:
+    """Recent ``limit`` orchestration phases (chronological): id, phase, payload dict, created_at."""
+    limit = max(1, min(limit, 500))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, phase, payload_json, created_at FROM (
+                   SELECT id, phase, payload_json, created_at
+                   FROM agent_turn_log
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, dict[str, Any], str]] = []
+    for r in rows:
+        raw = r[2]
+        try:
+            payload = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            payload = {"_parse_error": True, "raw": str(raw)[:2000]}
+        if not isinstance(payload, dict):
+            payload = {"value": payload}
+        out.append((int(r[0]), str(r[1]), payload, str(r[3])))
+    return out
+
+
+async def list_agent_step_events(
+    session_id: str,
+    *,
+    limit: int = 200,
+) -> list[tuple[int, str, str, str, str | None, dict[str, Any], int | None, str]]:
+    """Recent ``limit`` step lifecycle rows (chronological)."""
+    limit = max(1, min(limit, 500))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at FROM (
+                   SELECT id, correlation_id, step_id, state, tool_name, detail_json, latency_ms, created_at
+                   FROM agent_step_events
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, str, str, str | None, dict[str, Any], int | None, str]] = []
+    for r in rows:
+        raw = r[5]
+        try:
+            detail = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            detail = {"_parse_error": True}
+        if not isinstance(detail, dict):
+            detail = {"value": detail}
+        out.append(
+            (
+                int(r[0]),
+                str(r[1]),
+                str(r[2]),
+                str(r[3]),
+                str(r[4]) if r[4] is not None else None,
+                detail,
+                int(r[6]) if r[6] is not None else None,
+                str(r[7]),
+            )
+        )
+    return out
+
+
+async def append_agent_handoff(
+    session_id: str,
+    correlation_id: str,
+    status: str,
+    detail: dict[str, Any],
+) -> int:
+    """Record a specialist / delegate handoff (or routing intent) for traceability."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """INSERT INTO agent_handoffs (session_id, correlation_id, status, detail_json, created_at)
+               VALUES (?, ?, ?, ?, ?)""",
+            (
+                session_id.strip(),
+                correlation_id.strip(),
+                status.strip(),
+                json.dumps(detail, default=str),
+                _utc_now(),
+            ),
+        )
+        await db.commit()
+        return int(cur.lastrowid or 0)
+
+
+async def get_app_settings() -> dict[str, Any]:
+    from .settings_store import DEFAULT_APP_SETTINGS, _coerce_settings
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            "SELECT settings_json FROM app_settings WHERE id = 1 LIMIT 1"
+        )
+        row = await cur.fetchone()
+    if row is None:
+        return _coerce_settings({})
+    raw = row[0]
+    try:
+        data = json.loads(str(raw)) if raw else {}
+    except json.JSONDecodeError:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return _coerce_settings(data)
+
+
+async def set_app_settings(settings: dict[str, Any]) -> None:
+    from .settings_store import _coerce_settings
+
+    payload = _coerce_settings(settings)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        await db.execute(
+            """INSERT INTO app_settings (id, settings_json, updated_at)
+               VALUES (1, ?, ?)
+               ON CONFLICT(id) DO UPDATE SET
+                 settings_json = excluded.settings_json,
+                 updated_at = excluded.updated_at""",
+            (json.dumps(payload, default=str), _utc_now()),
+        )
+        await db.commit()
+
+
+async def list_agent_handoffs(
+    session_id: str,
+    *,
+    limit: int = 80,
+) -> list[tuple[int, str, str, dict[str, Any], str]]:
+    """Recent handoff rows: id, correlation_id, status, detail dict, created_at."""
+    limit = max(1, min(limit, 300))
+    sid = session_id.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("PRAGMA foreign_keys = ON")
+        cur = await db.execute(
+            """SELECT id, correlation_id, status, detail_json, created_at FROM (
+                   SELECT id, correlation_id, status, detail_json, created_at
+                   FROM agent_handoffs
+                   WHERE session_id = ?
+                   ORDER BY id DESC
+                   LIMIT ?
+               ) ORDER BY id ASC""",
+            (sid, limit),
+        )
+        rows = await cur.fetchall()
+    out: list[tuple[int, str, str, dict[str, Any], str]] = []
+    for r in rows:
+        raw = r[3]
+        try:
+            detail = json.loads(str(raw)) if raw is not None else {}
+        except json.JSONDecodeError:
+            detail = {"_parse_error": True}
+        if not isinstance(detail, dict):
+            detail = {"value": detail}
+        out.append((int(r[0]), str(r[1]), str(r[2]), detail, str(r[4])))
+    return out

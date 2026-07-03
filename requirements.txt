@@ -1,0 +1,23 @@
+# Core dependencies for all sessions
+# Install with: pip install -r requirements.txt
+
+# Session 01 — no API key required
+tiktoken>=0.7.0                # Tokenization (offline, no API needed)
+sentence-transformers>=3.0.0   # Local embeddings (downloads model ~90MB on first use)
+numpy>=1.26.0                  # Vector math
+
+# Session 02+ — Anthropic API key required (or use Ollama locally)
+anthropic>=0.40.0              # Claude API client
+openai>=1.40.0                 # Session 04: OpenAI + OpenAI-compatible clients (incl. Ollama /v1)
+
+# Session 07 — RAG & Vector Databases
+tiktoken>=0.7.0                # Token-aware chunking (Session 07 labs)
+chromadb>=0.5.0                # Local vector database (optional demo)
+ollama>=0.3.0                  # Local LLM client (requires Ollama running: https://ollama.com)
+
+# Session 05 — MCP Servers with FastMCP
+fastmcp>=2.0.0                 # FastMCP framework for building MCP servers
+mcp>=1.0.0                     # Official MCP Python SDK (client + server primitives)
+
+# Utilities
+python-dotenv>=1.0.0           # Load ANTHROPIC_API_KEY from .env file

@@ -1,0 +1,3321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>allan_project</title>
+  <style>
+    :root {
+      --bg: #0b0e12;
+      --surface: #121820;
+      --surface2: #1a2330;
+      --border: #2a3545;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --user: #2563eb;
+      --assistant: #1a2332;
+      --accent: #38bdf8;
+      --accent2: #4ade80;
+      --error: #f87171;
+      --warn-border: rgba(250, 204, 21, 0.55);
+      --warn-bg: rgba(250, 204, 21, 0.08);
+      --sidebar-w: 15.5rem;
+      --log-panel-min: 17rem;
+      --log-panel-max: min(40vw, 26rem);
+      --intent: #a78bfa;
+      --planner: #38bdf8;
+      --executor: #4ade80;
+      --verifier: #fbbf24;
+      --system: #94a3b8;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+    /* ——— Sidebar ——— */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0.75rem 0.65rem;
+      gap: 0.5rem;
+    }
+    .sidebar .brand {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.03em;
+      padding: 0.25rem 0.4rem;
+    }
+    .sidebar .btn-new {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 0.88rem;
+      cursor: pointer;
+      text-align: left;
+    }
+    .sidebar .btn-new:hover { filter: brightness(1.08); }
+    .session-list-wrap {
+      flex: 1;
+      overflow-y: auto;
+      margin: 0.25rem 0;
+      min-height: 4rem;
+    }
+    .session-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .session-list li {
+      padding: 0.45rem 0.5rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.78rem;
+      color: var(--muted);
+      border: 1px solid transparent;
+      margin-bottom: 0.25rem;
+    }
+    .session-list li:hover { background: var(--surface2); color: var(--text); }
+    .session-list li.active {
+      background: var(--surface2);
+      border-color: var(--border);
+      color: var(--text);
+    }
+    .session-list .sess-msgs { display: block; font-size: 0.7rem; opacity: 0.85; }
+    .session-list .sess-title { display: block; margin-top: 0.15rem; line-height: 1.35; word-break: break-word; }
+    .side-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .side-nav a, .side-nav button {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.4rem 0.5rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .side-nav a:hover, .side-nav button:hover { color: var(--accent); background: rgba(56, 189, 248, 0.06); }
+    /* ——— Main + live logs row ——— */
+    .main-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      min-width: 0;
+      min-height: 100vh;
+    }
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 100vh;
+    }
+    .live-logs {
+      flex: 0 0 var(--log-panel-max);
+      min-width: var(--log-panel-min);
+      max-width: var(--log-panel-max);
+      background: #0a0d11;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      z-index: 5;
+    }
+    .live-logs.hidden { display: none !important; }
+    .live-logs-header {
+      padding: 0.5rem 0.55rem 0.4rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .live-logs-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+    }
+    .live-logs-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem;
+      margin-top: 0.35rem;
+    }
+    .live-logs-toolbar .live-tab {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .live-logs-toolbar .live-tab:hover { color: var(--text); }
+    .live-logs-toolbar .live-tab.active {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: rgba(56, 189, 248, 0.45);
+      color: var(--accent);
+    }
+    .live-logs-toolbar .icon-btn {
+      margin-left: auto;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .live-logs-toolbar .icon-btn:hover { color: var(--text); background: var(--surface2); }
+    .live-logs-toolbar .icon-btn.pinned { color: var(--accent); }
+    .live-logs-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.45rem 0.5rem 0.75rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.68rem;
+      line-height: 1.35;
+    }
+    .live-logs-body.hidden { display: none; }
+    .live-log-line {
+      margin-bottom: 0.45rem;
+      padding: 0.4rem 0.45rem 0.45rem 0.5rem;
+      background: var(--surface2);
+      border-radius: 6px;
+      border-left: 3px solid var(--border);
+      word-break: break-word;
+    }
+    .live-log-line.ch-intent { border-left-color: var(--intent); }
+    .live-log-line.ch-planner { border-left-color: var(--planner); }
+    .live-log-line.ch-executor { border-left-color: var(--executor); }
+    .live-log-line.ch-verifier { border-left-color: var(--verifier); }
+    .live-log-line.ch-system { border-left-color: var(--system); }
+    .live-log-line .live-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem;
+      margin-bottom: 0.25rem;
+    }
+    .live-log-line .ts { color: #64748b; font-size: 0.65rem; }
+    .live-log-line .tag {
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 0.12rem 0.38rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .live-log-line .tag.t-intent { background: rgba(167, 139, 250, 0.2); color: #ddd6fe; }
+    .live-log-line .tag.t-planner { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+    .live-log-line .tag.t-executor { background: rgba(74, 222, 128, 0.15); color: #86efac; }
+    .live-log-line .tag.t-verifier { background: rgba(251, 191, 36, 0.15); color: #fde047; }
+    .live-log-line .tag.t-system { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+    .live-log-line .phase { color: #94a3b8; font-size: 0.62rem; }
+    .live-log-line pre {
+      margin: 0.25rem 0 0;
+      padding: 0.35rem 0.4rem;
+      background: var(--bg);
+      border-radius: 4px;
+      overflow-x: auto;
+      max-height: 14rem;
+      font-size: 0.62rem;
+      white-space: pre-wrap;
+    }
+    .controls button.sm.logs-on {
+      background: rgba(56, 189, 248, 0.25);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: var(--accent);
+    }
+    .top-header {
+      padding: 0.65rem 1rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .top-header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    .top-header .subline {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+    }
+    .header-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      align-items: center;
+    }
+    .badge {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .badge.ok { border-color: rgba(74, 222, 128, 0.45); color: #86efac; background: rgba(74, 222, 128, 0.08); }
+    .badge.info { border-color: rgba(56, 189, 248, 0.45); color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+    .badge.neutral { opacity: 0.9; }
+    .badge.warn { border-color: rgba(248, 113, 113, 0.4); color: #fca5a5; }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .controls label { font-size: 0.72rem; color: var(--muted); }
+    #modelSelect {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.78rem;
+      max-width: 11rem;
+    }
+    .controls button.sm {
+      background: var(--border);
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      padding: 0.3rem 0.55rem;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .controls button.sm:hover { filter: brightness(1.1); }
+    .chk {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    /* ——— Orchestration strip ——— */
+    .orch-strip {
+      padding: 0.45rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+    }
+    .orch-strip button.ghost {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.72rem;
+      cursor: pointer;
+    }
+    .orch-strip button.ghost:hover { color: var(--text); border-color: var(--accent); }
+    .orch-strip .events-pill {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    /* ——— Pipeline ——— */
+    .pipeline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.72rem;
+    }
+    .pipeline.hidden { display: none; }
+    .pipe-step {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--muted);
+    }
+    .pipe-step.done { color: #86efac; }
+    .pipe-step.skipped { color: #64748b; }
+    .pipe-step.deferred { color: #fbbf24; }
+    .pipe-arrow { color: var(--border); user-select: none; }
+    /* ——— Trace panel ——— */
+    .trace-panel {
+      margin: 0 1rem;
+      margin-top: 0.5rem;
+      padding: 0.75rem 0.85rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.78rem;
+    }
+    .trace-panel.hidden { display: none; }
+    .trace-panel h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+    .trace-panel pre {
+      margin: 0.35rem 0;
+      padding: 0.5rem;
+      background: var(--bg);
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.68rem;
+      line-height: 1.4;
+      max-height: 10rem;
+    }
+    .trace-panel ul { margin: 0.25rem 0 0.5rem 1rem; padding: 0; color: var(--text); }
+    .trace-panel .cta {
+      margin-top: 0.5rem;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--warn-border);
+      background: var(--warn-bg);
+      border-radius: 8px;
+      color: #fde68a;
+    }
+    .trace-panel details { margin-top: 0.5rem; }
+    .trace-panel details summary { cursor: pointer; color: var(--accent); font-size: 0.78rem; }
+    /* ——— Messages ——— */
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .bubble {
+      max-width: min(90%, 44rem);
+      padding: 0.65rem 0.9rem;
+      border-radius: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .bubble.user {
+      align-self: flex-end;
+      background: var(--user);
+      color: #fff;
+      border-bottom-right-radius: 4px;
+    }
+    .bubble.assistant {
+      align-self: flex-start;
+      background: var(--assistant);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+    .bubble.error {
+      align-self: center;
+      background: rgba(248, 113, 113, 0.12);
+      color: var(--error);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      font-size: 0.88rem;
+    }
+    .bubble.meta {
+      align-self: center;
+      color: var(--muted);
+      font-size: 0.76rem;
+      background: transparent;
+      border: none;
+    }
+    /* ——— Settings block ——— */
+    #settingsPanel {
+      margin: 0.5rem 1rem 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0;
+    }
+    #settingsPanel:not([open]) { border: none; background: transparent; }
+    #settingsPanel > summary {
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--accent);
+      padding: 0.35rem 0.5rem;
+      list-style: none;
+    }
+    #settingsPanel > summary::-webkit-details-marker { display: none; }
+    .panel-body {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .panel-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    #mcpConfigJson {
+      width: 100%;
+      min-height: 8rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.76rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 0.5rem;
+    }
+    #mcpToolsSummary {
+      font-size: 0.74rem;
+      color: var(--muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hint { font-size: 0.72rem; color: var(--muted); }
+    /* ——— Footer ——— */
+    footer {
+      padding: 0.65rem 1rem 0.85rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    footer textarea {
+      width: 100%;
+      min-height: 3.1rem;
+      resize: vertical;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 0.55rem 0.7rem;
+      font-size: 0.92rem;
+      font-family: inherit;
+    }
+    footer textarea:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .send-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.45rem;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .send-row button.secondary {
+      background: var(--surface2);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    .send-row button.secondary:hover { color: var(--text); }
+    .send-row a.trace-link {
+      display: inline-flex;
+      align-items: center;
+      margin-right: auto;
+      padding: 0.45rem 0.85rem;
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface2);
+    }
+    .send-row a.trace-link:hover { color: var(--text); border-color: var(--accent); }
+    .send-row a.trace-link.disabled {
+      pointer-events: none;
+      opacity: 0.4;
+      color: var(--muted);
+    }
+    .send-row button.send {
+      background: var(--accent2);
+      color: #052e16;
+      border: none;
+      border-radius: 8px;
+      padding: 0.45rem 1.15rem;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .send-row button.send:disabled { opacity: 0.45; cursor: not-allowed; }
+    #debugPanel {
+      display: none;
+      margin: 0 1rem 0.5rem;
+      padding: 0.6rem;
+      background: #0a0c0f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      max-height: 14rem;
+      overflow: auto;
+    }
+    #debugPanel.open { display: block; }
+    #debugPanel pre {
+      margin: 0;
+      font-size: 0.68rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #commandsPopover {
+      display: none;
+      position: absolute;
+      z-index: 20;
+      right: 1rem;
+      top: 3.2rem;
+      width: min(18rem, 92vw);
+      padding: 0.65rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+    }
+    #commandsPopover.open { display: block; }
+    /* ——— System Architecture modal ——— */
+    .arch-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .arch-modal-overlay.open { display: flex; }
+    .arch-modal {
+      width: min(1080px, 96vw);
+      max-height: 86vh;
+      overflow: auto;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .arch-modal-header {
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.75rem 0.85rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      z-index: 1;
+    }
+    .arch-modal-title { font-weight: 700; font-size: 1.05rem; }
+    .arch-modal-subtitle { color: var(--muted); font-size: 0.78rem; margin-top: 0.2rem; }
+    .arch-modal-body { padding: 0.75rem 0.85rem 1rem; }
+    .arch-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .arch-tab {
+      font-size: 0.74rem;
+      padding: 0.35rem 0.6rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+    .arch-tab.active {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.55);
+      color: var(--accent);
+    }
+    .arch-tabcontent { display: none; }
+    .arch-tabcontent.active { display: block; }
+    .arch-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+    .arch-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.65rem 0.7rem;
+      min-height: 7.5rem;
+    }
+    .arch-card h4 { margin: 0 0 0.35rem 0; font-size: 0.82rem; color: var(--text); }
+    .arch-card p { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+    .arch-card ul { margin: 0.35rem 0 0; padding-left: 1.1rem; color: var(--muted); font-size: 0.74rem; line-height: 1.35; }
+    .arch-step { color: var(--muted); font-size: 0.78rem; line-height: 1.45; margin: 0.25rem 0; }
+    .arch-kv { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem; }
+    .arch-pill {
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: rgba(255,255,255,0.02);
+    }
+    @media (max-width: 980px) { .arch-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 640px) { .arch-grid { grid-template-columns: 1fr; } }
+
+    /* Request flow timeline */
+    .flow-timeline {
+      position: relative;
+      padding-left: 2.5rem;
+      max-width: 52rem;
+    }
+    .flow-timeline::before {
+      content: "";
+      position: absolute;
+      left: 0.95rem;
+      top: 1.1rem;
+      bottom: 1.1rem;
+      width: 2px;
+      background: var(--border);
+    }
+    .flow-step {
+      position: relative;
+      margin-bottom: 0.85rem;
+    }
+    .flow-step:last-child { margin-bottom: 0; }
+    .flow-num {
+      position: absolute;
+      left: -2.5rem;
+      top: 0.35rem;
+      width: 1.9rem;
+      height: 1.9rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #fff;
+      background: #ea580c;
+      border: 2px solid var(--surface);
+      z-index: 1;
+    }
+    .flow-box {
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .flow-box.edge { border-color: rgba(56, 189, 248, 0.55); background: rgba(56, 189, 248, 0.06); }
+    .flow-box.internal { border-color: rgba(234, 88, 12, 0.45); background: rgba(234, 88, 12, 0.05); }
+    .flow-box h4 { margin: 0; font-size: 0.86rem; font-weight: 600; color: var(--text); }
+    .flow-box p { margin: 0.3rem 0 0; font-size: 0.74rem; color: var(--muted); line-height: 1.4; }
+    .flow-box p code { font-size: 0.7rem; }
+    .flow-route-tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.45rem; }
+    .flow-tag {
+      font-size: 0.68rem;
+      padding: 0.2rem 0.45rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+    .flow-tag.intent { background: rgba(167, 139, 250, 0.2); color: #ddd6fe; border: 1px solid rgba(167, 139, 250, 0.45); }
+    .flow-tag.tool { background: rgba(234, 88, 12, 0.15); color: #fdba74; border: 1px solid rgba(234, 88, 12, 0.4); }
+    .flow-tag.direct { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; border: 1px solid var(--border); }
+    .flow-ip {
+      margin: 0.5rem 0 0.85rem;
+      border: 2px solid rgba(167, 139, 250, 0.55);
+      border-radius: 10px;
+      background: rgba(167, 139, 250, 0.06);
+      padding: 0.65rem 0.75rem 0.75rem 2.6rem;
+      position: relative;
+    }
+    .flow-ip-badge {
+      position: absolute;
+      left: 0.65rem;
+      top: 0.65rem;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      background: rgba(167, 139, 250, 0.35);
+      color: #ede9fe;
+      font-size: 0.62rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: -0.02em;
+    }
+    .flow-ip-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #ddd6fe;
+      margin: 0 0 0.5rem 0;
+    }
+    .flow-ip-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 1rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+    .flow-ip-grid span strong { color: #c4b5fd; font-weight: 600; }
+    @media (max-width: 640px) { .flow-ip-grid { grid-template-columns: 1fr; } }
+
+    /* Overview layered diagram */
+    .ov-stack { max-width: 54rem; }
+    .ov-layer {
+      border-radius: 10px;
+      padding: 0.55rem 0.65rem 0.65rem;
+      margin-bottom: 0;
+    }
+    .ov-layer-title {
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      margin: 0 0 0.45rem 0;
+      text-transform: uppercase;
+    }
+    .ov-layer.browser {
+      border: 2px solid rgba(56, 189, 248, 0.55);
+      background: rgba(56, 189, 248, 0.05);
+    }
+    .ov-layer.browser .ov-layer-title { color: #7dd3fc; }
+    .ov-layer.api {
+      border: 2px solid rgba(167, 139, 250, 0.55);
+      background: rgba(167, 139, 250, 0.05);
+    }
+    .ov-layer.api .ov-layer-title { color: #ddd6fe; }
+    .ov-layer.memory {
+      border: 2px solid rgba(45, 212, 191, 0.55);
+      background: rgba(45, 212, 191, 0.05);
+    }
+    .ov-layer.memory .ov-layer-title { color: #5eead4; }
+    .ov-layer.external {
+      border: 2px solid rgba(234, 88, 12, 0.5);
+      background: rgba(234, 88, 12, 0.05);
+    }
+    .ov-layer.external .ov-layer-title { color: #fdba74; }
+    .ov-tiles {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+    }
+    .ov-tiles.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .ov-tile {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 0.4rem 0.5rem;
+      min-height: 2.6rem;
+    }
+    .ov-tile.span-2 { grid-column: span 2; }
+    .ov-tile strong {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text);
+      font-weight: 600;
+    }
+    .ov-tile span {
+      display: block;
+      font-size: 0.66rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+      line-height: 1.3;
+    }
+    .ov-arrow {
+      text-align: center;
+      font-size: 0.68rem;
+      color: var(--muted);
+      padding: 0.35rem 0;
+      line-height: 1.3;
+    }
+    .ov-arrow::before {
+      content: "↓";
+      display: block;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 0.1rem;
+    }
+    .ov-arrows-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem 1rem;
+      padding: 0.35rem 0 0.45rem;
+      font-size: 0.66rem;
+      color: var(--muted);
+    }
+    .ov-arrows-row span::before {
+      content: "↓ ";
+      color: #94a3b8;
+    }
+    @media (max-width: 640px) {
+      .ov-tiles, .ov-tiles.cols-3 { grid-template-columns: 1fr; }
+      .ov-tile.span-2 { grid-column: span 1; }
+    }
+
+    /* Settings modal */
+    .settings-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 55;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .settings-modal-overlay.open { display: flex; }
+    .settings-modal {
+      width: min(520px, 96vw);
+      max-height: 90vh;
+      overflow: auto;
+      background: #f8fafc;
+      color: #0f172a;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+    .settings-modal-header {
+      padding: 1rem 1.1rem 0.65rem;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.75rem;
+    }
+    .settings-modal-header h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .settings-modal-header p {
+      margin: 0.25rem 0 0;
+      font-size: 0.8rem;
+      color: #64748b;
+    }
+    .settings-close {
+      border: none;
+      background: transparent;
+      font-size: 1.25rem;
+      color: #64748b;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.15rem 0.35rem;
+    }
+    .settings-body { padding: 0.85rem 1.1rem 1rem; }
+    .settings-field { margin-bottom: 0.85rem; }
+    .settings-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.3rem;
+    }
+    .settings-field input[type="text"],
+    .settings-field input[type="number"],
+    .settings-field select,
+    .settings-field textarea {
+      width: 100%;
+      font-size: 0.88rem;
+      padding: 0.45rem 0.55rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+    }
+    .settings-field textarea { min-height: 7rem; font-family: ui-monospace, monospace; font-size: 0.76rem; }
+    .settings-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+    .settings-model-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0.45rem;
+      align-items: end;
+    }
+    .settings-model-row select { min-width: 10rem; }
+    .settings-check {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-start;
+      margin-bottom: 0.55rem;
+      font-size: 0.82rem;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .settings-check input { margin-top: 0.2rem; flex-shrink: 0; }
+    .settings-check span small { display: block; color: #64748b; font-weight: 400; margin-top: 0.1rem; }
+    .settings-hint {
+      font-size: 0.74rem;
+      color: #64748b;
+      margin: 0.35rem 0 0.65rem;
+      line-height: 1.35;
+    }
+    .settings-warn {
+      font-size: 0.74rem;
+      color: #b45309;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.45rem 0.55rem;
+      margin-bottom: 0.65rem;
+    }
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid #e2e8f0;
+      margin-top: 0.5rem;
+    }
+    .settings-actions button {
+      padding: 0.45rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+    }
+    .settings-actions button.primary {
+      background: #ea580c;
+      border-color: #ea580c;
+      color: #fff;
+      font-weight: 600;
+    }
+    .settings-mcp details { margin-top: 0.75rem; }
+    .settings-mcp summary {
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.45rem;
+    }
+    .settings-warn.hidden { display: none; }
+    .settings-section {
+      margin: 1rem 0 0.65rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .settings-section:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+    .settings-section h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+    .settings-footer-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      padding: 0.75rem 0 0;
+      margin-top: 0.5rem;
+      border-top: 1px solid #e2e8f0;
+      position: sticky;
+      bottom: 0;
+      background: #f8fafc;
+    }
+
+    /* MCP servers modal */
+    .mcp-modal.settings-modal { width: min(720px, 96vw); }
+    .mcp-section-title {
+      margin: 0 0 0.35rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .mcp-server-list { display: flex; flex-direction: column; gap: 0.65rem; margin: 0.5rem 0 0; }
+    .mcp-server-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+      background: #fff;
+    }
+    .mcp-server-card.disabled { opacity: 0.72; background: #f1f5f9; }
+    .mcp-server-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .mcp-server-name { font-weight: 700; font-size: 0.9rem; color: #0f172a; }
+    .mcp-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid #cbd5e1;
+      color: #64748b;
+      background: #f8fafc;
+    }
+    .mcp-badge.on { color: #166534; border-color: #86efac; background: #dcfce7; }
+    .mcp-server-cmd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.72rem;
+      color: #475569;
+      word-break: break-all;
+      margin: 0 0 0.25rem;
+    }
+    .mcp-server-meta { font-size: 0.72rem; color: #64748b; margin-bottom: 0.45rem; }
+    .mcp-server-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .mcp-server-actions button {
+      font-size: 0.78rem;
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      cursor: pointer;
+    }
+    .mcp-server-actions button.danger { color: #b91c1c; border-color: #fecaca; }
+    .mcp-tool-discovery {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid #e2e8f0;
+    }
+    .mcp-tool-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      align-items: center;
+      margin: 0.5rem 0;
+    }
+    .mcp-tool-toolbar select {
+      flex: 1;
+      min-width: 10rem;
+      font-size: 0.85rem;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .mcp-tool-list {
+      max-height: 16rem;
+      overflow: auto;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .mcp-tool-row {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border-bottom: 1px solid #f1f5f9;
+      font-size: 0.78rem;
+      align-items: flex-start;
+    }
+    .mcp-tool-row:last-child { border-bottom: none; }
+    .mcp-tool-row input { margin-top: 0.2rem; flex-shrink: 0; }
+    .mcp-tool-row.disabled { opacity: 0.55; }
+    .mcp-tool-names {
+      font-family: ui-monospace, monospace;
+      font-size: 0.72rem;
+      color: #334155;
+      margin-bottom: 0.15rem;
+    }
+    .mcp-tool-desc { color: #64748b; line-height: 1.35; }
+    .mcp-empty { font-size: 0.78rem; color: #64748b; padding: 0.65rem; }
+
+    .top-header { position: relative; }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="brand">allan_project</div>
+    <button type="button" class="btn-new" id="newChat">New chat</button>
+    <div class="session-list-wrap">
+      <ul class="session-list" id="sessionList" aria-label="Recent chats"></ul>
+    </div>
+    <nav class="side-nav">
+      <button type="button" id="btnSystemArch" title="System architecture (FastAPI, Ollama, SQLite, MCP, RAG)">System architecture</button>
+      <button type="button" id="openSettings">Settings</button>
+      <a href="/health" target="_blank" rel="noopener">This machine</a>
+      <button type="button" id="scrollToModels">Ollama &amp; models</button>
+      <button type="button" id="openMcpSettings">MCP servers</button>
+      <a href="/docs" target="_blank" rel="noopener">OpenAPI docs</a>
+    </nav>
+  </aside>
+
+  <div class="main-wrap">
+  <div class="main">
+    <header class="top-header">
+      <div class="header-row">
+        <div>
+          <h1>allan_project</h1>
+          <div class="subline" id="headerSubline">Local Ollama — <b>Intent plan</b> = orchestration trace; <b>MCP tools</b> = load tool registry (both if you want planned tool runs).</div>
+        </div>
+        <div class="badges" id="statusBadges" aria-live="polite">
+          <span class="badge neutral">API …</span>
+        </div>
+      </div>
+      <div class="controls" style="margin-top:0.5rem" id="modelControls">
+        <label for="modelSelect">Model</label>
+        <select id="modelSelect" aria-label="Ollama model">
+          <option value="">Default (server env)</option>
+        </select>
+        <button type="button" class="sm" id="btnRefreshModels" title="Reload models from Ollama">Refresh</button>
+        <label class="chk" title="Loads the MCP tool registry for this chat; required for the planner to run remote tools. Independent of Intent plan."><input type="checkbox" id="useMcp" /> MCP tools</label>
+        <label class="chk" title="Structured intent → plan → verify → reply. Does not load tools unless MCP tools is also enabled."><input type="checkbox" id="useAgent" /> Intent plan</label>
+        <button type="button" class="sm" id="btnPullHistory">Reload history</button>
+        <button type="button" class="sm" id="btnLiveLogs" title="Open right panel: agent SQLite trace + server log tail">LOGS</button>
+        <button type="button" class="sm" id="btnCommands">Commands</button>
+      </div>
+      <div id="commandsPopover" role="dialog" aria-label="Shortcuts">
+        <strong style="color:var(--text)">Shortcuts</strong><br />
+        Enter — send · Shift+Enter — newline<br />
+        <kbd>/docs</kbd> — API reference (link in sidebar)<br />
+        Enable <b>Intent plan</b> for orchestration trace on each reply.<br />
+        <b>LOGS</b> — right panel: live Agent trace (SQLite) + Server log tail.
+      </div>
+    </header>
+
+    <div class="orch-strip">
+      <button type="button" class="ghost" id="btnExplain" title="What this bar does">Request explanation</button>
+      <button type="button" class="ghost" id="btnClarifyHint" title="When the model asks for clarification">Needs clarification</button>
+      <span class="events-pill" id="orchEventsPill">0 orchestration event(s)</span>
+    </div>
+
+    <div id="pipelineBar" class="pipeline hidden" aria-hidden="true"></div>
+
+    <section id="tracePanel" class="trace-panel hidden" aria-label="Orchestration trace">
+      <h3>Last turn — orchestration trace</h3>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Intent trace</strong></div>
+      <pre id="traceIntentJson"></pre>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Extracted keywords</strong></div>
+      <ul id="traceKeywords"></ul>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Open questions</strong></div>
+      <ul id="traceOpenQ"></ul>
+      <div><strong style="color:var(--muted);font-size:0.72rem">Tool fit</strong></div>
+      <p id="traceToolFit" style="margin:0.25rem 0;color:var(--text)"></p>
+      <div id="traceCta" class="cta hidden"></div>
+      <details>
+        <summary>Technical: intent draft (markdown)</summary>
+        <pre id="traceIntentMd"></pre>
+      </details>
+    </section>
+
+    <div id="log" aria-live="polite"></div>
+
+    <div id="debugPanel" aria-label="Debug console"><pre id="debugPre"></pre></div>
+
+    <footer>
+      <textarea id="input" placeholder="Describe an incident, paste an alert, or ask for help… (Enter to send, Shift+Enter for newline)" rows="2"></textarea>
+      <div class="send-row">
+        <a id="agentTraceLink" class="trace-link disabled" href="#" target="_blank" rel="noopener">Agent trace (JSON)</a>
+        <button type="button" class="secondary" id="btnDebug">Console debug</button>
+        <button type="button" class="send" id="send">Send</button>
+      </div>
+    </footer>
+  </div>
+
+  <aside id="liveLogsPanel" class="live-logs hidden" aria-label="Live logs">
+    <div class="live-logs-header">
+      <div class="live-logs-title">LIVE LOGS</div>
+      <div class="live-logs-toolbar">
+        <button type="button" class="live-tab active" id="liveLogsTabAgent" data-tab="agent">Agent</button>
+        <button type="button" class="live-tab" id="liveLogsTabServer" data-tab="server">Server</button>
+        <span style="flex:1"></span>
+        <button type="button" class="icon-btn" id="liveLogsPin" title="Pin: close button is disabled while pinned">📌</button>
+        <button type="button" class="icon-btn" id="liveLogsCopy" title="Copy visible tab">Copy</button>
+        <button type="button" class="icon-btn" id="liveLogsDownload" title="Download visible tab">Save</button>
+        <button type="button" class="icon-btn" id="liveLogsClose" title="Hide panel">✕</button>
+      </div>
+    </div>
+    <div id="liveLogsBodyAgent" class="live-logs-body" aria-live="polite"></div>
+    <div id="liveLogsBodyServer" class="live-logs-body hidden"></div>
+  </aside>
+  </div>
+
+  <div id="archModal" class="arch-modal-overlay" role="dialog" aria-label="System architecture">
+    <div class="arch-modal" role="document">
+      <div class="arch-modal-header">
+        <div>
+          <div class="arch-modal-title">◈ System Architecture</div>
+          <div class="arch-modal-subtitle">FastAPI + Ollama + SQLite + MCP + (optional) RAG</div>
+        </div>
+        <button type="button" class="icon-btn" id="archCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="arch-modal-body">
+        <div class="arch-tabs" aria-label="Architecture tabs">
+          <button type="button" class="arch-tab active" data-tab="overview">Overview</button>
+          <button type="button" class="arch-tab" data-tab="request-flow">Request Flow</button>
+          <button type="button" class="arch-tab" data-tab="memory">Memory &amp; Persistence</button>
+          <button type="button" class="arch-tab" data-tab="tech">Tech Stack</button>
+        </div>
+
+        <div class="arch-tabcontent active" data-tab="overview">
+          <div class="ov-stack" aria-label="System overview diagram">
+            <section class="ov-layer browser">
+              <h3 class="ov-layer-title">Browser (SPA)</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Sidebar</strong>
+                  <span>Chats · session list · reload history</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Chat Workspace</strong>
+                  <span>Bubbles · Intent trace · pipeline bar</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Live Logs Drawer</strong>
+                  <span>~900 ms poll · agent trace + server log</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>ARCH Modal</strong>
+                  <span>Overview · request flow · memory · tech</span>
+                </div>
+                <div class="ov-tile span-2">
+                  <strong>Settings Panel</strong>
+                  <span>Model · MCP config · Intent plan · MCP tools flags</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrow">HTTP / fetch (localhost:8000)</div>
+
+            <section class="ov-layer api">
+              <h3 class="ov-layer-title">FastAPI (app.py)</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Intent Pipeline</strong>
+                  <span>intent → plan → execute → compose</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Tool Loop</strong>
+                  <span>Ollama · MCP tool rounds</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Direct Chat</strong>
+                  <span>plain Ollama when flags off</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Session APIs</strong>
+                  <span>/chat · /sessions · /messages</span>
+                </div>
+                <div class="ov-tile span-2">
+                  <strong>Trace APIs</strong>
+                  <span>/agent-trace · /orchestration-state · /logs/tail</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrow">Memory subsystem</div>
+
+            <section class="ov-layer memory">
+              <h3 class="ov-layer-title">Memory subsystem</h3>
+              <div class="ov-tiles">
+                <div class="ov-tile">
+                  <strong>Episodic retrieval</strong>
+                  <span>FTS search · past memory injected</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Knowledge base</strong>
+                  <span>durable_memory_fts · optional hybrid RAG</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Reflective memory</strong>
+                  <span>LLM-distilled lessons per turn</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Governance</strong>
+                  <span>write guardrails · orchestration_policies</span>
+                </div>
+              </div>
+            </section>
+
+            <div class="ov-arrows-row">
+              <span>LLM calls</span>
+              <span>MCP calls (optional)</span>
+              <span>Storage R/W</span>
+            </div>
+
+            <section class="ov-layer external">
+              <h3 class="ov-layer-title">External services &amp; storage</h3>
+              <div class="ov-tiles cols-3">
+                <div class="ov-tile">
+                  <strong>LLM</strong>
+                  <span>Ollama · OLLAMA_HOST</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>MCP (optional)</strong>
+                  <span>stdio servers · mcp_remote_servers.json</span>
+                </div>
+                <div class="ov-tile">
+                  <strong>Storage</strong>
+                  <span>SQLite · data/app.db</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="request-flow">
+          <div class="flow-timeline" aria-label="Request flow diagram">
+            <div class="flow-step">
+              <span class="flow-num">1</span>
+              <div class="flow-box edge">
+                <h4>User sends message</h4>
+                <p><code>POST /chat</code> → FastAPI (<code>ollama_service.chat_with_optional_session</code>)</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">2</span>
+              <div class="flow-box internal">
+                <h4>Load session + history from SQLite</h4>
+                <p>Model, <code>history_limit</code> (default 40), <code>use_mcp_tools</code>, <code>use_agent_pipeline</code></p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">3</span>
+              <div class="flow-box internal">
+                <h4>MCP hub check</h4>
+                <p><code>mcp_hub.list_ollama_tools_and_routes()</code> — tools offered only when MCP is enabled and servers are configured</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">4</span>
+              <div class="flow-box internal">
+                <h4>Route decision</h4>
+                <div class="flow-route-tags">
+                  <span class="flow-tag intent">intent_on → Intent Pipeline</span>
+                  <span class="flow-tag tool">tool_on → Tool Loop</span>
+                  <span class="flow-tag direct">else → Direct Chat</span>
+                </div>
+              </div>
+              <div class="flow-ip" aria-label="Intent pipeline detail">
+                <span class="flow-ip-badge">IP</span>
+                <p class="flow-ip-title">Intent Pipeline (when Intent plan is on)</p>
+                <div class="flow-ip-grid">
+                  <span><strong>1.</strong> preparse → <code>agent_preparse</code></span>
+                  <span><strong>2.</strong> memory retrieval → FTS + optional hybrid RAG</span>
+                  <span><strong>3.</strong> intent discovery → layered L1–L5 LLM JSON</span>
+                  <span><strong>4.</strong> capability + policy → <code>agent_resolve</code></span>
+                  <span><strong>5.</strong> planner → step DAG (<code>plan_graph</code>)</span>
+                  <span><strong>6.</strong> verifier → replan if failures</span>
+                  <span><strong>7.</strong> kb_retrieval → <code>kb_connector.query_local_kb</code></span>
+                  <span><strong>8.</strong> plan_executor → MCP tool calls</span>
+                  <span><strong>9.</strong> composer → evidence-based reply</span>
+                  <span><strong>10.</strong> memory_writer → <code>data/memory/*.md</code></span>
+                  <span><strong>11.</strong> trace writer → <code>data/traces/turn_*.md</code></span>
+                  <span><strong>12.</strong> orchestration audit → SQLite <code>agent_*</code> + <code>orchestration_*</code></span>
+                </div>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">5</span>
+              <div class="flow-box internal">
+                <h4>Persist assistant reply → SQLite</h4>
+                <p><code>chat_messages</code> + <code>agent_turn_log</code> + <code>orchestration_*</code> tables</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <span class="flow-num">6</span>
+              <div class="flow-box edge">
+                <h4>Return ChatResponse to browser</h4>
+                <p><code>reply</code> + optional <code>orchestration</code> trace (intent, pipeline stages, tool fit)</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="memory">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>Short-term Memory</h4>
+              <p>
+                Recent conversation context loaded per turn from `chat_messages` (bounded by `history_limit`, default 40).
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">SQLite</span>
+                <span class="arch-pill">bounded context</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Episodic Memory</h4>
+              <p>
+                When `ALLAN_AGENT_MEMORY_WRITE=1`, the agent summarizes durable lessons and stores them as markdown in `data/memory/<session|global>/`.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">markdown</span>
+                <span class="arch-pill">FTS-indexed</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Long-term Memory</h4>
+              <p>
+                Durable memory lives in SQLite + FTS5 (`durable_memory_fts`) with optional hybrid RAG (BM25 + embeddings + RRF) over chunked memory.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">FTS5</span>
+                <span class="arch-pill">hybrid RAG</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Reflective Memory</h4>
+              <p>
+                Turn-by-turn pipeline traces written to `data/traces/<session_id>/turn_*.md` when `ALLAN_AGENT_TRACE_MD=1`.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">trace markdown</span>
+                <span class="arch-pill">auditability</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Procedural Memory</h4>
+              <p>
+                The orchestration pipeline itself is persisted: intents, plans, tasks, tool calls, and KB queries in `orchestration_*` tables.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">pipeline state</span>
+                <span class="arch-pill">evidence bundle</span>
+              </div>
+            </div>
+            <div class="arch-card">
+              <h4>Memory Governance</h4>
+              <p>
+                Policies in `orchestration_policies` can block unsafe memory writes (e.g., secrets) and require approval for certain state changes.
+              </p>
+              <div class="arch-kv">
+                <span class="arch-pill">guardrails</span>
+                <span class="arch-pill">audit log</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arch-tabcontent" data-tab="tech">
+          <div class="arch-grid">
+            <div class="arch-card">
+              <h4>Web</h4>
+              <p>Static UI: `static/chat.html` with live SQLite trace panel.</p>
+            </div>
+            <div class="arch-card">
+              <h4>Backend</h4>
+              <p>FastAPI service (`allan_ollama_mcp/app.py`) with session + agent endpoints.</p>
+            </div>
+            <div class="arch-card">
+              <h4>LLM</h4>
+              <p>Ollama HTTP API for chat, plus optional tool calling (tools-capable model).</p>
+            </div>
+            <div class="arch-card">
+              <h4>Storage</h4>
+              <p>
+                SQLite database (`data/app.db`) with FTS5 for durable memory.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>RAG (optional)</h4>
+              <p>
+                `ALLAN_RAG_HYBRID=1` enables chunked hybrid retrieval using `sentence-transformers` and local BM25, fused with RRF.
+              </p>
+            </div>
+            <div class="arch-card">
+              <h4>MCP tools</h4>
+              <p>
+                MCP stdio servers configured via `mcp_remote_servers.json` and exposed through the Ollama tool registry.
+              </p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <div id="mcpModal" class="settings-modal-overlay" role="dialog" aria-label="MCP servers">
+    <div class="settings-modal mcp-modal" role="document">
+      <div class="settings-modal-header">
+        <div>
+          <h2>MCP servers (stdio)</h2>
+          <p id="mcpConfigPathHint">Same format as Cursor / VS Code <code>mcp.servers</code>: <code>command</code>, <code>args</code> (JSON array), optional <code>cwd</code> and <code>env</code>. Tools load per chat when MCP tools is enabled.</p>
+        </div>
+        <button type="button" class="settings-close" id="mcpCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <h3 class="mcp-section-title">Configured servers</h3>
+        <p class="settings-hint" style="margin-top:0">Disable a server to stop spawning its process. Delete removes it from <code>mcp_remote_servers.json</code> and clears saved tool toggles.</p>
+        <div id="mcpServerList" class="mcp-server-list" aria-live="polite"></div>
+
+        <div class="mcp-tool-discovery">
+          <h3 class="mcp-section-title">Tool discovery (per MCP server)</h3>
+          <p class="settings-hint" style="margin-top:0">Saved tools load from SQLite. <strong>Discover tools</strong> connects to the MCP, refreshes the catalog, and updates descriptions. Disabled tools are not sent to the model on the next message.</p>
+          <div class="mcp-tool-toolbar">
+            <select id="mcpToolServerPick" aria-label="MCP server for tool list"></select>
+            <button type="button" id="mcpDiscoverBtn">Discover tools</button>
+          </div>
+          <div id="mcpToolList" class="mcp-tool-list" aria-live="polite">
+            <div class="mcp-empty">Select a server and click Discover tools.</div>
+          </div>
+        </div>
+
+        <details class="settings-mcp" style="margin-top:0.85rem">
+          <summary>Advanced: edit JSON file</summary>
+          <textarea id="mcpModalConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+          <div class="settings-actions" style="border-top:none;margin-top:0.45rem;padding-top:0">
+            <button type="button" id="mcpModalLoadJson">Load file</button>
+            <button type="button" id="mcpModalSaveJson">Save file</button>
+          </div>
+        </details>
+
+        <div class="settings-footer-actions">
+          <button type="button" id="mcpCloseBtn2">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsModal" class="settings-modal-overlay" role="dialog" aria-label="Settings">
+    <div class="settings-modal" role="document">
+      <div class="settings-modal-header">
+        <div>
+          <h2>Settings</h2>
+          <p>Stored in SQLite (<code>app_settings</code>). Ollama host is applied on save.</p>
+        </div>
+        <button type="button" class="settings-close" id="settingsCloseBtn" title="Close">✕</button>
+      </div>
+      <div class="settings-body">
+        <div id="settingsProviderWarn" class="settings-warn hidden">
+          Only <strong>Ollama (local)</strong> is fully wired in allan_project. Other providers are stored for future use.
+        </div>
+
+        <div class="settings-field">
+          <label for="settingsProvider">Provider</label>
+          <select id="settingsProvider" aria-label="LLM provider">
+            <option value="ollama">Ollama (local)</option>
+            <option value="openai">OpenAI (GPT-4o, GPT-4o-mini…)</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="google">Google Gemini</option>
+            <option value="xai">xAI Grok</option>
+            <option value="openrouter">OpenRouter (multi-model gateway)</option>
+            <option value="custom">Custom (OpenAI-compatible endpoint)</option>
+          </select>
+        </div>
+
+        <div class="settings-field" id="settingsOllamaHostWrap">
+          <label for="settingsOllamaHost">Ollama host</label>
+          <input type="text" id="settingsOllamaHost" placeholder="http://127.0.0.1:11434" />
+        </div>
+
+        <div class="settings-field">
+          <label for="settingsModel">Model name</label>
+          <div class="settings-model-row">
+            <input type="text" id="settingsModel" placeholder="llama3.2" />
+            <select id="settingsModelPick" aria-label="Pick a model">
+              <option value="">— pick a model —</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-row-2">
+          <div class="settings-field">
+            <label for="settingsTemperature">Temperature</label>
+            <input type="number" id="settingsTemperature" min="0" max="2" step="0.1" value="0.3" />
+          </div>
+          <div class="settings-field">
+            <label for="settingsHistoryLimit">Max history messages</label>
+            <input type="number" id="settingsHistoryLimit" min="1" max="500" step="1" value="40" />
+          </div>
+        </div>
+
+        <section class="settings-section" aria-label="Tools">
+          <h3>Tools (MCP)</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsMcp" />
+            <span>
+              Tool calling
+              <small>MCP tools via Ollama tool registry</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsWebSearch" disabled />
+            <span>
+              Web search
+              <small>DuckDuckGo — not implemented yet</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsSynthetic" disabled />
+            <span>
+              Synthetic demo tools
+              <small>Fake SLI + K8s events — lab demos only</small>
+            </span>
+          </label>
+          <p class="settings-hint">
+            Requires a tools-capable Ollama model (e.g. <code>llama3.2</code>, <code>llama3.1</code> — not <code>llama3:latest</code>).
+          </p>
+          <div class="settings-field">
+            <label for="settingsMaxToolRounds">Max tool rounds</label>
+            <input type="number" id="settingsMaxToolRounds" min="1" max="50" step="1" value="12" />
+          </div>
+        </section>
+
+        <section class="settings-section" aria-label="Planning and execution">
+          <h3>Planning &amp; execution</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsIntentPlanning" />
+            <span>
+              Intent planning
+              <small>Preparse → intent JSON → planner; persisted in SQLite</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsPlanExecution" />
+            <span>
+              Plan execution
+              <small>Run plan DAG via tools/MCP → composer (requires intent planning)</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="settings-section" aria-label="Memory and retrieval">
+          <h3>Memory &amp; retrieval</h3>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsSessionMemory" />
+            <span>
+              Session markdown memory
+              <small><code>data/memory/</code> + <code>memory_refs</code></small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsEpisodic" />
+            <span>
+              Episodic retrieval
+              <small>Inject past sessions (FTS) into intent context</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsKb" />
+            <span>
+              Knowledge base retrieval
+              <small>Inject matching runbooks/SOPs before each turn</small>
+            </span>
+          </label>
+          <label class="settings-check">
+            <input type="checkbox" id="settingsReflective" />
+            <span>
+              Reflective memory
+              <small>LLM distills a lesson after each intent turn</small>
+            </span>
+          </label>
+          <div class="settings-field">
+            <label for="settingsRetentionDays">Memory retention (days)</label>
+            <input type="number" id="settingsRetentionDays" min="1" max="3650" step="1" value="90" />
+          </div>
+        </section>
+
+        <div class="settings-mcp">
+          <details id="settingsMcpDetails">
+            <summary>MCP servers (mcp_remote_servers.json)</summary>
+            <textarea id="mcpConfigJson" spellcheck="false" aria-label="MCP servers JSON"></textarea>
+            <div class="settings-actions" style="border-top:none;margin-top:0.45rem;padding-top:0">
+              <button type="button" id="btnLoadMcp">Load</button>
+              <button type="button" id="btnRefreshMcpTools">Refresh tools</button>
+            </div>
+            <div id="mcpToolsSummary" class="settings-hint"></div>
+          </details>
+        </div>
+
+        <div class="settings-footer-actions">
+          <button type="button" class="primary" id="settingsSaveBtn">Save</button>
+          <button type="button" id="settingsCloseBtn2">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LS_KEY = "allan_project_session_id";
+    const LS_MODEL = "allan_project_model";
+    const LS_MCP = "allan_project_use_mcp";
+    const LS_AGENT = "allan_project_use_agent";
+
+    const logEl = document.getElementById("log");
+    const inputEl = document.getElementById("input");
+    const modelSelect = document.getElementById("modelSelect");
+    const sendBtn = document.getElementById("send");
+    const newChatBtn = document.getElementById("newChat");
+    const useMcpEl = document.getElementById("useMcp");
+    const useAgentEl = document.getElementById("useAgent");
+    const sessionList = document.getElementById("sessionList");
+    const btnPullHistory = document.getElementById("btnPullHistory");
+    const mcpConfigJson = document.getElementById("mcpConfigJson");
+    const btnLoadMcp = document.getElementById("btnLoadMcp");
+    const btnRefreshMcpTools = document.getElementById("btnRefreshMcpTools");
+    const mcpToolsSummary = document.getElementById("mcpToolsSummary");
+    const statusBadges = document.getElementById("statusBadges");
+    const headerSubline = document.getElementById("headerSubline");
+    const pipelineBar = document.getElementById("pipelineBar");
+    const tracePanel = document.getElementById("tracePanel");
+    const traceIntentJson = document.getElementById("traceIntentJson");
+    const traceKeywords = document.getElementById("traceKeywords");
+    const traceOpenQ = document.getElementById("traceOpenQ");
+    const traceToolFit = document.getElementById("traceToolFit");
+    const traceCta = document.getElementById("traceCta");
+    const traceIntentMd = document.getElementById("traceIntentMd");
+    const orchEventsPill = document.getElementById("orchEventsPill");
+    const mcpModal = document.getElementById("mcpModal");
+    const mcpCloseBtn = document.getElementById("mcpCloseBtn");
+    const mcpCloseBtn2 = document.getElementById("mcpCloseBtn2");
+    const mcpServerList = document.getElementById("mcpServerList");
+    const mcpToolServerPick = document.getElementById("mcpToolServerPick");
+    const mcpDiscoverBtn = document.getElementById("mcpDiscoverBtn");
+    const mcpToolList = document.getElementById("mcpToolList");
+    const mcpModalConfigJson = document.getElementById("mcpModalConfigJson");
+    const mcpModalLoadJson = document.getElementById("mcpModalLoadJson");
+    const mcpModalSaveJson = document.getElementById("mcpModalSaveJson");
+    const mcpConfigPathHint = document.getElementById("mcpConfigPathHint");
+    let mcpSelectedServerId = null;
+
+    const settingsModal = document.getElementById("settingsModal");
+    const settingsCloseBtn = document.getElementById("settingsCloseBtn");
+    const settingsCloseBtn2 = document.getElementById("settingsCloseBtn2");
+    const settingsSaveBtn = document.getElementById("settingsSaveBtn");
+    const settingsProvider = document.getElementById("settingsProvider");
+    const settingsProviderWarn = document.getElementById("settingsProviderWarn");
+    const settingsOllamaHostWrap = document.getElementById("settingsOllamaHostWrap");
+    const settingsOllamaHost = document.getElementById("settingsOllamaHost");
+    const settingsModel = document.getElementById("settingsModel");
+    const settingsModelPick = document.getElementById("settingsModelPick");
+    const settingsTemperature = document.getElementById("settingsTemperature");
+    const settingsHistoryLimit = document.getElementById("settingsHistoryLimit");
+    const settingsIntentPlanning = document.getElementById("settingsIntentPlanning");
+    const settingsPlanExecution = document.getElementById("settingsPlanExecution");
+    const settingsMcp = document.getElementById("settingsMcp");
+    const settingsSessionMemory = document.getElementById("settingsSessionMemory");
+    const settingsEpisodic = document.getElementById("settingsEpisodic");
+    const settingsKb = document.getElementById("settingsKb");
+    const settingsReflective = document.getElementById("settingsReflective");
+    const settingsRetentionDays = document.getElementById("settingsRetentionDays");
+    const settingsWebSearch = document.getElementById("settingsWebSearch");
+    const settingsSynthetic = document.getElementById("settingsSynthetic");
+    const settingsMaxToolRounds = document.getElementById("settingsMaxToolRounds");
+    const settingsMcpDetails = document.getElementById("settingsMcpDetails");
+    const debugPanel = document.getElementById("debugPanel");
+    const debugPre = document.getElementById("debugPre");
+    const btnDebug = document.getElementById("btnDebug");
+    const agentTraceLink = document.getElementById("agentTraceLink");
+    const btnCommands = document.getElementById("btnCommands");
+    const commandsPopover = document.getElementById("commandsPopover");
+    const btnRefreshModels = document.getElementById("btnRefreshModels");
+    const btnLiveLogs = document.getElementById("btnLiveLogs");
+    const liveLogsPanel = document.getElementById("liveLogsPanel");
+    const liveLogsTabAgent = document.getElementById("liveLogsTabAgent");
+    const liveLogsTabServer = document.getElementById("liveLogsTabServer");
+    const liveLogsBodyAgent = document.getElementById("liveLogsBodyAgent");
+    const liveLogsBodyServer = document.getElementById("liveLogsBodyServer");
+    const liveLogsPin = document.getElementById("liveLogsPin");
+    const liveLogsCopy = document.getElementById("liveLogsCopy");
+    const liveLogsDownload = document.getElementById("liveLogsDownload");
+    const liveLogsClose = document.getElementById("liveLogsClose");
+
+    const btnSystemArch = document.getElementById("btnSystemArch");
+    const archModal = document.getElementById("archModal");
+    const archCloseBtn = document.getElementById("archCloseBtn");
+    const archTabButtons = Array.from(document.querySelectorAll(".arch-tab"));
+    const archTabContents = Array.from(document.querySelectorAll(".arch-tabcontent"));
+
+    const LS_LIVE_LOGS_OPEN = "allan_project_live_logs_open";
+    const LS_LIVE_LOGS_PIN = "allan_project_live_logs_pin";
+
+    let sessionId = null;
+    let busy = false;
+    let messageOrdinal = 0;
+    let lastDebugPayload = null;
+    let liveLogsPollId = null;
+    let liveLogsTab = "agent";
+    let lastAgentTraceBundle = null;
+    let lastServerLogLines = [];
+    let liveLogsAgentStickBottom = true;
+    let appSettings = {
+      provider: "ollama",
+      ollama_host: "http://127.0.0.1:11434",
+      model: "",
+      temperature: 0.3,
+      history_limit: 40,
+      use_agent_pipeline: false,
+      intent_planning: false,
+      plan_execution: true,
+      use_mcp_tools: false,
+      web_search: false,
+      synthetic_demo_tools: false,
+      max_tool_rounds: 12,
+      session_memory_write: true,
+      episodic_retrieval: true,
+      kb_retrieval: true,
+      reflective_memory: true,
+      memory_retention_days: 90,
+    };
+
+    function persistSessionId() {
+      if (sessionId) localStorage.setItem(LS_KEY, sessionId);
+      else localStorage.removeItem(LS_KEY);
+    }
+
+    function escapeHtml(s) {
+      const d = document.createElement("div");
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function liveLogsPinned() {
+      return localStorage.getItem(LS_LIVE_LOGS_PIN) === "1";
+    }
+
+    function setLiveLogsPinned(on) {
+      if (on) localStorage.setItem(LS_LIVE_LOGS_PIN, "1");
+      else localStorage.removeItem(LS_LIVE_LOGS_PIN);
+      liveLogsPin.classList.toggle("pinned", on);
+      liveLogsClose.disabled = on;
+      liveLogsClose.style.opacity = on ? "0.35" : "";
+    }
+
+    function phaseChannel(phase) {
+      const p = String(phase || "").toLowerCase();
+      const intentish = [
+        "preparse",
+        "memory_enriched",
+        "capability_resolve",
+        "intent_contract",
+        "intent_discovery",
+        "intent_layer1",
+        "intent_layer2",
+        "intent_layer3",
+        "intent_layer4",
+        "intent_layer5",
+        "message_received",
+        "session_bootstrap",
+      ];
+      if (p.startsWith("intent") || intentish.includes(p)) {
+        return { line: "ch-intent", tag: "INTENT", tagCls: "t-intent" };
+      }
+      if (p === "planning" || p === "replanner") {
+        return { line: "ch-planner", tag: "PLANNER", tagCls: "t-planner" };
+      }
+      if (p === "executor_step" || p.indexOf("execute") !== -1) {
+        return { line: "ch-executor", tag: "EXECUTOR", tagCls: "t-executor" };
+      }
+      if (p === "verifier") {
+        return { line: "ch-verifier", tag: "VERIFIER", tagCls: "t-verifier" };
+      }
+      if (p === "handoff_recorded") {
+        return { line: "ch-system", tag: "HANDOFF", tagCls: "t-system" };
+      }
+      if (p === "response_composed" || p === "memory_writer") {
+        return { line: "ch-planner", tag: "RESPONSE", tagCls: "t-planner" };
+      }
+      return { line: "ch-system", tag: "TRACE", tagCls: "t-system" };
+    }
+
+    function fmtLiveTime(iso) {
+      try {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return String(iso || "");
+        const pad = (n, w) => String(n).padStart(w, "0");
+        return (
+          pad(d.getHours(), 2) +
+          ":" +
+          pad(d.getMinutes(), 2) +
+          ":" +
+          pad(d.getSeconds(), 2) +
+          "." +
+          pad(d.getMilliseconds(), 3)
+        );
+      } catch (_) {
+        return String(iso || "");
+      }
+    }
+
+    function mergeAgentTimeline(bundle) {
+      const rows = [];
+      if (!bundle) return rows;
+      for (const t of bundle.turn_logs || []) {
+        rows.push({
+          t: new Date(t.created_at).getTime(),
+          kind: "turn",
+          d: t,
+        });
+      }
+      for (const e of bundle.step_events || []) {
+        rows.push({
+          t: new Date(e.created_at).getTime(),
+          kind: "step",
+          d: e,
+        });
+      }
+      for (const h of bundle.handoffs || []) {
+        rows.push({
+          t: new Date(h.created_at).getTime(),
+          kind: "handoff",
+          d: h,
+        });
+      }
+      rows.sort((a, b) => a.t - b.t);
+      return rows;
+    }
+
+    function renderLiveAgent(bundle) {
+      if (!sessionId) {
+        liveLogsBodyAgent.textContent = "Start or select a chat session to load the SQLite agent trace.";
+        return;
+      }
+      if (!bundle) {
+        liveLogsBodyAgent.textContent =
+          "No trace loaded yet. Enable Intent plan, send a message, or open Agent trace (JSON) after a reply.";
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      const merged = mergeAgentTimeline(bundle);
+      if (merged.length === 0) {
+        const p = document.createElement("p");
+        p.style.color = "var(--muted)";
+        p.textContent =
+          "No agent_turn_log rows for this session yet — orchestration writes here during Intent plan turns.";
+        frag.appendChild(p);
+      }
+      for (const row of merged) {
+        const wrap = document.createElement("div");
+        wrap.className = "live-log-line";
+        const meta = document.createElement("div");
+        meta.className = "live-meta";
+        if (row.kind === "turn") {
+          const t = row.d;
+          const ch = phaseChannel(t.phase);
+          wrap.classList.add(ch.line);
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(t.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag " + ch.tagCls;
+          tag.textContent = ch.tag;
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent = t.phase || "";
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(t.payload || {}, null, 2);
+          wrap.appendChild(pre);
+        } else if (row.kind === "step") {
+          const e = row.d;
+          wrap.classList.add("ch-executor");
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(e.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag t-executor";
+          tag.textContent = "EXECUTOR";
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent =
+            (e.step_id || "") +
+            " · " +
+            (e.state || "") +
+            (e.tool_name ? " · " + e.tool_name : "");
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          const detail = e.detail && typeof e.detail === "object" ? e.detail : {};
+          pre.textContent = JSON.stringify(
+            {
+              correlation_id: e.correlation_id,
+              latency_ms: e.latency_ms,
+              detail,
+            },
+            null,
+            2
+          );
+          wrap.appendChild(pre);
+        } else {
+          const h = row.d;
+          wrap.classList.add("ch-system");
+          const ts = document.createElement("span");
+          ts.className = "ts";
+          ts.textContent = fmtLiveTime(h.created_at);
+          const tag = document.createElement("span");
+          tag.className = "tag t-system";
+          tag.textContent = "HANDOFF";
+          const ph = document.createElement("span");
+          ph.className = "phase";
+          ph.textContent = h.status || "";
+          meta.appendChild(ts);
+          meta.appendChild(tag);
+          meta.appendChild(ph);
+          wrap.appendChild(meta);
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(h.detail || {}, null, 2);
+          wrap.appendChild(pre);
+        }
+        frag.appendChild(wrap);
+      }
+      const stick = liveLogsAgentStickBottom;
+      const prevScroll = liveLogsBodyAgent.scrollTop;
+      const prevMax = liveLogsBodyAgent.scrollHeight - liveLogsBodyAgent.clientHeight;
+      liveLogsBodyAgent.innerHTML = "";
+      liveLogsBodyAgent.appendChild(frag);
+      if (stick || prevMax - prevScroll < 8) {
+        liveLogsBodyAgent.scrollTop = liveLogsBodyAgent.scrollHeight;
+      }
+    }
+
+    function renderLiveServer(lines) {
+      liveLogsBodyServer.textContent = (lines || []).join("\n") || "(empty — file logging may be disabled)";
+    }
+
+    async function refreshLiveLogsOnce() {
+      if (!liveLogsPanel || liveLogsPanel.classList.contains("hidden")) return;
+      if (sessionId) {
+        try {
+          const r = await fetch(
+            "/sessions/" + encodeURIComponent(sessionId) + "/agent-trace?log_limit=200&event_limit=250&handoff_limit=100"
+          );
+          const data = await r.json().catch(() => ({}));
+          if (r.ok) {
+            lastAgentTraceBundle = data;
+            if (liveLogsTab === "agent") renderLiveAgent(data);
+          } else if (r.status === 404) {
+            lastAgentTraceBundle = null;
+            if (liveLogsTab === "agent") {
+              liveLogsBodyAgent.textContent = "Session not found or no access.";
+            }
+          } else {
+            lastAgentTraceBundle = null;
+            if (liveLogsTab === "agent") {
+              liveLogsBodyAgent.textContent =
+                "Agent trace error: " + (data.detail ? JSON.stringify(data.detail) : r.statusText);
+            }
+          }
+        } catch (e) {
+          if (liveLogsTab === "agent") {
+            liveLogsBodyAgent.textContent = "Agent trace fetch failed: " + String(e.message || e);
+          }
+        }
+      } else {
+        lastAgentTraceBundle = null;
+        if (liveLogsTab === "agent") renderLiveAgent(null);
+      }
+      try {
+        const r = await fetch("/logs/tail?lines=180");
+        const data = await r.json().catch(() => ({}));
+        if (r.ok && Array.isArray(data.lines)) {
+          lastServerLogLines = data.lines;
+          if (liveLogsTab === "server") renderLiveServer(data.lines);
+        } else {
+          lastServerLogLines = [];
+          if (liveLogsTab === "server") {
+            renderLiveServer([
+              r.status === 404
+                ? "Server file log unavailable (set file logging or wait for first log line)."
+                : "GET /logs/tail failed: " + (data.detail || r.statusText),
+            ]);
+          }
+        }
+      } catch (e) {
+        lastServerLogLines = [];
+        if (liveLogsTab === "server") {
+          renderLiveServer(["/logs/tail error: " + String(e.message || e)]);
+        }
+      }
+    }
+
+    function startLiveLogsPoll() {
+      if (liveLogsPollId) return;
+      void refreshLiveLogsOnce();
+      liveLogsPollId = setInterval(() => {
+        void refreshLiveLogsOnce();
+      }, 900);
+    }
+
+    function stopLiveLogsPoll() {
+      if (liveLogsPollId) {
+        clearInterval(liveLogsPollId);
+        liveLogsPollId = null;
+      }
+    }
+
+    function setLiveLogsTab(tab) {
+      liveLogsTab = tab === "server" ? "server" : "agent";
+      liveLogsTabAgent.classList.toggle("active", liveLogsTab === "agent");
+      liveLogsTabServer.classList.toggle("active", liveLogsTab === "server");
+      liveLogsBodyAgent.classList.toggle("hidden", liveLogsTab !== "agent");
+      liveLogsBodyServer.classList.toggle("hidden", liveLogsTab !== "server");
+      void refreshLiveLogsOnce();
+    }
+
+    function setLiveLogsOpen(open) {
+      if (!liveLogsPanel) return;
+      liveLogsPanel.classList.toggle("hidden", !open);
+      btnLiveLogs.classList.toggle("logs-on", !!open);
+      if (open) {
+        localStorage.setItem(LS_LIVE_LOGS_OPEN, "1");
+        startLiveLogsPoll();
+        liveLogsAgentStickBottom = true;
+      } else {
+        localStorage.removeItem(LS_LIVE_LOGS_OPEN);
+        stopLiveLogsPoll();
+      }
+    }
+
+    liveLogsBodyAgent.addEventListener("scroll", () => {
+      const el = liveLogsBodyAgent;
+      const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
+      liveLogsAgentStickBottom = dist < 12;
+    });
+
+    function appendBubble(role, text) {
+      const div = document.createElement("div");
+      div.className = "bubble " + role;
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function appendMeta(text) {
+      const div = document.createElement("div");
+      div.className = "bubble meta";
+      div.textContent = text;
+      logEl.appendChild(div);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function formatDetail(detail) {
+      if (detail == null) return "Request failed";
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        return detail.map((e) => e.msg || JSON.stringify(e)).join("; ");
+      }
+      return JSON.stringify(detail);
+    }
+
+    function updateAgentTraceLink() {
+      if (!agentTraceLink) return;
+      if (!sessionId) {
+        agentTraceLink.href = "#";
+        agentTraceLink.classList.add("disabled");
+      } else {
+        agentTraceLink.href =
+          "/sessions/" + encodeURIComponent(sessionId) + "/agent-trace";
+        agentTraceLink.classList.remove("disabled");
+      }
+    }
+
+    function updateHeaderSubline() {
+      const bits = ["Local Ollama"];
+      bits.push(useMcpEl.checked ? "tools on" : "tools off");
+      bits.push("MCP");
+      bits.push(useAgentEl.checked ? "intent on" : "intent off");
+      headerSubline.textContent =
+        bits.join(" · ") + " — conversation #" + (sessionId ? sessionId.slice(0, 8) : "…") + " — messages load below.";
+    }
+
+    function setTraceVisible(vis) {
+      tracePanel.classList.toggle("hidden", !vis);
+      pipelineBar.classList.toggle("hidden", !vis);
+    }
+
+    function renderOrchestration(orch) {
+      if (!orch) {
+        setTraceVisible(false);
+        orchEventsPill.textContent = "0 orchestration event(s)";
+        return;
+      }
+      setTraceVisible(true);
+      orchEventsPill.textContent =
+        (orch.orchestration_event_count || 0) + " orchestration event(s)";
+
+      traceIntentJson.textContent = JSON.stringify(orch.intent_trace || {}, null, 2);
+      traceKeywords.innerHTML = "";
+      for (const k of orch.extracted_keywords || []) {
+        const li = document.createElement("li");
+        li.textContent = k;
+        traceKeywords.appendChild(li);
+      }
+      traceOpenQ.innerHTML = "";
+      for (const q of orch.open_questions || []) {
+        const li = document.createElement("li");
+        li.textContent = q;
+        traceOpenQ.appendChild(li);
+      }
+      traceToolFit.textContent = orch.tool_fit || "—";
+      const hq = orch.highlighted_question;
+      if (hq) {
+        traceCta.textContent = "We need one thing: " + hq;
+        traceCta.classList.remove("hidden");
+      } else {
+        traceCta.classList.add("hidden");
+      }
+      traceIntentMd.textContent = orch.intent_draft_markdown || "";
+
+      pipelineBar.innerHTML = "";
+      const stages = orch.pipeline_stages || [];
+      stages.forEach((s, i) => {
+        const sp = document.createElement("span");
+        sp.className = "pipe-step " + (s.state || "done");
+        sp.textContent = s.label || s.id;
+        pipelineBar.appendChild(sp);
+        if (i < stages.length - 1) {
+          const ar = document.createElement("span");
+          ar.className = "pipe-arrow";
+          ar.textContent = " → ";
+          pipelineBar.appendChild(ar);
+        }
+      });
+    }
+
+    async function refreshStatusBadges() {
+      const frag = document.createDocumentFragment();
+      let apiOk = false;
+      try {
+        const h = await fetch("/health");
+        apiOk = h.ok;
+      } catch (_) {}
+      const b1 = document.createElement("span");
+      b1.className = "badge " + (apiOk ? "ok" : "warn");
+      b1.textContent = apiOk ? "API up" : "API down";
+      frag.appendChild(b1);
+
+      let modelNames = [];
+      try {
+        const r = await fetch("/models");
+        const d = await r.json().catch(() => ({}));
+        if (r.ok && Array.isArray(d.models)) modelNames = d.models;
+      } catch (_) {}
+      const b2 = document.createElement("span");
+      b2.className = "badge " + (modelNames.length ? "info" : "warn");
+      b2.textContent = modelNames.length
+        ? "Ollama · " + modelNames.length + " model(s)"
+        : "Ollama unreachable";
+      frag.appendChild(b2);
+
+      const sel = modelSelect.value.trim();
+      const b3 = document.createElement("span");
+      b3.className = "badge neutral";
+      b3.textContent = sel || "default model";
+      frag.appendChild(b3);
+
+      const b4 = document.createElement("span");
+      b4.className = "badge neutral";
+      b4.textContent = useMcpEl.checked ? "Tools on" : "Tools off";
+      frag.appendChild(b4);
+
+      const b5 = document.createElement("span");
+      b5.className = "badge " + (useAgentEl.checked ? "ok" : "neutral");
+      b5.textContent = useAgentEl.checked ? "Intent on" : "Intent off";
+      frag.appendChild(b5);
+
+      statusBadges.innerHTML = "";
+      statusBadges.appendChild(frag);
+    }
+
+    function populateModelSelect(names) {
+      const cur = modelSelect.value;
+      modelSelect.innerHTML = '<option value="">Default (server env)</option>';
+      for (const n of names) {
+        const o = document.createElement("option");
+        o.value = n;
+        o.textContent = n;
+        modelSelect.appendChild(o);
+      }
+      if (cur && [...modelSelect.options].some((o) => o.value === cur)) {
+        modelSelect.value = cur;
+      } else if (cur) {
+        const o = document.createElement("option");
+        o.value = cur;
+        o.textContent = cur + " (custom)";
+        modelSelect.appendChild(o);
+        modelSelect.value = cur;
+      }
+    }
+
+    function populateSettingsModelPick(names) {
+      const cur = settingsModelPick.value;
+      settingsModelPick.innerHTML = '<option value="">— pick a model —</option>';
+      for (const n of names) {
+        const o = document.createElement("option");
+        o.value = n;
+        o.textContent = n;
+        settingsModelPick.appendChild(o);
+      }
+      if (cur && [...settingsModelPick.options].some((o) => o.value === cur)) {
+        settingsModelPick.value = cur;
+      }
+    }
+
+    async function loadModelsFromServer() {
+      try {
+        const r = await fetch("/models");
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail));
+        const names = Array.isArray(d.models) ? d.models : [];
+        populateModelSelect(names);
+        populateSettingsModelPick(names);
+      } catch (e) {
+        appendMeta("Could not list Ollama models: " + String(e.message || e));
+      }
+      await refreshStatusBadges();
+    }
+
+    function applySettingsToUI(s) {
+      appSettings = { ...appSettings, ...s };
+      settingsProvider.value = appSettings.provider || "ollama";
+      settingsOllamaHost.value = appSettings.ollama_host || "http://127.0.0.1:11434";
+      settingsModel.value = appSettings.model || "";
+      settingsTemperature.value = String(appSettings.temperature ?? 0.3);
+      settingsHistoryLimit.value = String(appSettings.history_limit ?? 40);
+      const intentOn = !!(
+        appSettings.intent_planning ?? appSettings.use_agent_pipeline
+      );
+      settingsIntentPlanning.checked = intentOn;
+      settingsPlanExecution.checked = appSettings.plan_execution !== false;
+      settingsMcp.checked = !!appSettings.use_mcp_tools;
+      settingsWebSearch.checked = !!appSettings.web_search;
+      settingsSynthetic.checked = !!appSettings.synthetic_demo_tools;
+      settingsMaxToolRounds.value = String(appSettings.max_tool_rounds ?? 12);
+      settingsSessionMemory.checked = appSettings.session_memory_write !== false;
+      settingsEpisodic.checked = appSettings.episodic_retrieval !== false;
+      settingsKb.checked = appSettings.kb_retrieval !== false;
+      settingsReflective.checked = appSettings.reflective_memory !== false;
+      settingsRetentionDays.value = String(appSettings.memory_retention_days ?? 90);
+      useAgentEl.checked = intentOn;
+      useMcpEl.checked = settingsMcp.checked;
+      settingsPlanExecution.disabled = !intentOn;
+      localStorage.setItem(LS_AGENT, useAgentEl.checked ? "1" : "0");
+      localStorage.setItem(LS_MCP, useMcpEl.checked ? "1" : "0");
+      const m = (appSettings.model || "").trim();
+      if (m) {
+        if (![...modelSelect.options].some((o) => o.value === m)) {
+          const o = document.createElement("option");
+          o.value = m;
+          o.textContent = m;
+          modelSelect.appendChild(o);
+        }
+        modelSelect.value = m;
+        localStorage.setItem(LS_MODEL, m);
+      }
+      settingsProviderWarn.classList.toggle(
+        "hidden",
+        settingsProvider.value === "ollama"
+      );
+      settingsOllamaHostWrap.style.display =
+        settingsProvider.value === "ollama" ? "" : "none";
+      updateHeaderSubline();
+      void refreshStatusBadges();
+    }
+
+    function readSettingsFromForm() {
+      const intentOn = settingsIntentPlanning.checked;
+      return {
+        provider: settingsProvider.value,
+        ollama_host: settingsOllamaHost.value.trim(),
+        model: settingsModel.value.trim(),
+        temperature: parseFloat(settingsTemperature.value) || 0.3,
+        history_limit: parseInt(settingsHistoryLimit.value, 10) || 40,
+        intent_planning: intentOn,
+        plan_execution: intentOn && settingsPlanExecution.checked,
+        use_agent_pipeline: intentOn,
+        use_mcp_tools: settingsMcp.checked,
+        web_search: settingsWebSearch.checked,
+        synthetic_demo_tools: settingsSynthetic.checked,
+        max_tool_rounds: parseInt(settingsMaxToolRounds.value, 10) || 12,
+        session_memory_write: settingsSessionMemory.checked,
+        episodic_retrieval: settingsEpisodic.checked,
+        kb_retrieval: settingsKb.checked,
+        reflective_memory: settingsReflective.checked,
+        memory_retention_days: parseInt(settingsRetentionDays.value, 10) || 90,
+      };
+    }
+
+    async function loadSettingsFromServer() {
+      try {
+        const r = await fetch("/settings");
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail));
+        applySettingsToUI(d);
+      } catch (e) {
+        appendMeta("Could not load settings: " + String(e.message || e));
+      }
+    }
+
+    function openSettingsModal(focusMcp) {
+      applySettingsToUI(appSettings);
+      settingsModal.classList.add("open");
+      if (focusMcp) {
+        settingsMcpDetails.open = true;
+        mcpConfigJson.focus();
+      } else {
+        settingsProvider.focus();
+      }
+    }
+
+    function closeSettingsModal() {
+      settingsModal.classList.remove("open");
+    }
+
+    async function saveSettingsFromModal() {
+      const body = readSettingsFromForm();
+      try {
+        const r = await fetch("/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(formatDetail(d.detail) || r.statusText);
+        applySettingsToUI(d);
+        if (mcpConfigJson.value.trim()) {
+          await saveMcpConfig();
+        }
+        appendMeta("Settings saved to SQLite.");
+        closeSettingsModal();
+      } catch (e) {
+        appendBubble("error", "Settings save failed: " + String(e.message || e));
+      }
+    }
+
+    async function createSession() {
+      const r = await fetch("/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "allan_project" }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(formatDetail(data.detail) || r.statusText);
+      if (!data.id || typeof data.id !== "string") {
+        throw new Error("Invalid session response from server (missing id).");
+      }
+      sessionId = data.id;
+      messageOrdinal = 0;
+      persistSessionId();
+      appendMeta("New session — messages are stored in SQLite for this chat.");
+      await refreshSessionList();
+      updateHeaderSubline();
+      updateAgentTraceLink();
+    }
+
+    async function ensureSession() {
+      if (!sessionId) await createSession();
+    }
+
+    function renderHistory(messages) {
+      logEl.innerHTML = "";
+      messageOrdinal = 0;
+      for (const m of messages) {
+        const role = m.role;
+        if (role === "user") {
+          messageOrdinal++;
+          appendBubble("user", m.content || "");
+        } else if (role === "assistant") {
+          let t = m.content || "";
+          if (m.has_tool_calls) t = "(MCP tool step) " + t;
+          appendBubble("assistant", t);
+        } else if (role === "system") appendMeta("[system] " + (m.content || ""));
+        else if (role === "tool") {
+          const name = m.tool_name || "?";
+          const c = m.content || "";
+          appendMeta("Tool " + name + (c.length > 1800 ? " → " + c.slice(0, 1800) + "…" : " → " + c));
+        } else appendMeta("[" + role + "] " + (m.content || ""));
+      }
+      logEl.scrollTop = logEl.scrollHeight;
+      updateHeaderSubline();
+    }
+
+    async function loadHistoryForSession(id) {
+      const r = await fetch("/sessions/" + encodeURIComponent(id) + "/messages?limit=200");
+      const data = await r.json().catch(() => ({}));
+      if (r.status === 404) {
+        const err = new Error("Session not found");
+        err.name = "SessionNotFound";
+        throw err;
+      }
+      if (!r.ok) throw new Error(formatDetail(data.detail) || r.statusText);
+      const messages = Array.isArray(data) ? data : [];
+      sessionId = id;
+      persistSessionId();
+      renderHistory(messages);
+      appendMeta("Session " + id.slice(0, 8) + "… — " + messages.length + " row(s) from SQLite.");
+      setTraceVisible(false);
+      orchEventsPill.textContent = "0 orchestration event(s) (load a new reply with Intent plan)";
+      await refreshSessionList();
+      updateAgentTraceLink();
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function tryRestoreSession() {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      try {
+        await loadHistoryForSession(raw);
+        return true;
+      } catch (e) {
+        if (e && e.name === "SessionNotFound") localStorage.removeItem(LS_KEY);
+        return false;
+      }
+    }
+
+    async function pullHistoryFromServer() {
+      if (!sessionId) {
+        appendMeta("No session — pick a chat in the sidebar or start New chat.");
+        return;
+      }
+      const r = await fetch(
+        "/sessions/" + encodeURIComponent(sessionId) + "/messages?limit=200"
+      );
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(data.detail) || r.statusText);
+        return;
+      }
+      const messages = Array.isArray(data) ? data : [];
+      renderHistory(messages);
+      let line =
+        "Reloaded chat history from SQLite (" + messages.length + " messages).";
+      if (messages.length === 0) {
+        line +=
+          " Rows appear after you use Send. If you expected older lines, confirm GET /health database path or pick another session.";
+      }
+      appendMeta(line);
+    }
+
+    async function loadMcpConfig() {
+      await loadMcpJsonIntoTextareas();
+      const r = await fetch("/mcp/remotes-config");
+      const d = await r.json().catch(() => ({}));
+      if (r.ok) {
+        appendMeta(
+          "MCP config path: " + (d.path || "") + (d.exists ? "" : " (new file on save)")
+        );
+      }
+    }
+
+    async function saveMcpConfig() {
+      const raw = mcpConfigJson.value;
+      const r = await fetch("/mcp/remotes-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: raw }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      appendMeta("MCP config saved to " + (d.path || "file") + ". Hub reloaded.");
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    async function refreshMcpToolsSummary() {
+      const r = await fetch("/mcp/remote-tools?refresh=true");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpToolsSummary.textContent = "Could not list tools.";
+        return;
+      }
+      if (!d.configured) {
+        mcpToolsSummary.textContent =
+          "No MCP servers in config (empty servers array or missing file).";
+        return;
+      }
+      const names = (d.tools || []).map((t) => t.name).filter(Boolean);
+      mcpToolsSummary.textContent =
+        names.length +
+        " active tool(s) for chat: " +
+        (names.length ? names.slice(0, 12).join(", ") + (names.length > 12 ? "…" : "") : "(none — discover tools or enable servers)");
+    }
+
+    function syncMcpJsonTextareas(contentObjOrText) {
+      let text;
+      if (typeof contentObjOrText === "string") {
+        text = contentObjOrText;
+      } else {
+        text = JSON.stringify(contentObjOrText || { servers: [] }, null, 2);
+      }
+      mcpConfigJson.value = text;
+      mcpModalConfigJson.value = text;
+    }
+
+    async function loadMcpJsonIntoTextareas() {
+      const r = await fetch("/mcp/remotes-config");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendMeta("Could not load MCP config: " + formatDetail(d.detail));
+        return;
+      }
+      if (d.content != null && String(d.content).trim()) {
+        try {
+          syncMcpJsonTextareas(JSON.parse(d.content));
+        } catch {
+          syncMcpJsonTextareas(String(d.content));
+        }
+      } else {
+        syncMcpJsonTextareas({ servers: [] });
+      }
+      if (mcpConfigPathHint && d.path) {
+        mcpConfigPathHint.innerHTML =
+          'Config file: <code>' +
+          escapeHtml(d.path) +
+          "</code>" +
+          (d.exists ? "" : " (created on save)") +
+          ". Same format as Cursor <code>mcp.servers</code>.";
+      }
+    }
+
+    function renderMcpServers(servers) {
+      mcpServerList.innerHTML = "";
+      mcpToolServerPick.innerHTML = "";
+      if (!Array.isArray(servers) || servers.length === 0) {
+        mcpServerList.innerHTML =
+          '<div class="mcp-empty">No MCP servers configured. Use Advanced JSON below or copy from <code>mcp_remote_servers.example.json</code>.</div>';
+        mcpToolServerPick.innerHTML =
+          '<option value="">— no servers —</option>';
+        mcpSelectedServerId = null;
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Add a server first.</div>';
+        return;
+      }
+      for (const s of servers) {
+        const card = document.createElement("div");
+        card.className = "mcp-server-card" + (s.enabled ? "" : " disabled");
+        const label = escapeHtml(s.label || s.id);
+        const idx = s.index != null ? " #" + s.index : "";
+        card.innerHTML =
+          '<div class="mcp-server-head"><span class="mcp-server-name">' +
+          label +
+          idx +
+          '</span><span class="mcp-badge ' +
+          (s.enabled ? "on" : "") +
+          '">' +
+          (s.enabled ? "ON" : "OFF") +
+          "</span></div>" +
+          '<div class="mcp-server-cmd">' +
+          escapeHtml(s.command_preview || s.command || "") +
+          "</div>" +
+          '<div class="mcp-server-meta">' +
+          (s.env_count
+            ? s.env_count + " environment variable(s) — values hidden in list"
+            : "No environment variables") +
+          "</div>" +
+          '<div class="mcp-server-actions"></div>';
+        const actions = card.querySelector(".mcp-server-actions");
+        const btnToggle = document.createElement("button");
+        btnToggle.type = "button";
+        btnToggle.textContent = s.enabled ? "Disable" : "Enable";
+        btnToggle.addEventListener("click", () => {
+          void setMcpServerEnabled(s.id, !s.enabled);
+        });
+        const btnDel = document.createElement("button");
+        btnDel.type = "button";
+        btnDel.className = "danger";
+        btnDel.textContent = "Delete";
+        btnDel.addEventListener("click", () => {
+          if (
+            !confirm(
+              "Delete server " +
+                (s.label || s.id) +
+                "? This removes it from the JSON file and clears saved tool toggles."
+            )
+          ) {
+            return;
+          }
+          void deleteMcpServer(s.id);
+        });
+        actions.appendChild(btnToggle);
+        actions.appendChild(btnDel);
+        mcpServerList.appendChild(card);
+
+        const opt = document.createElement("option");
+        opt.value = s.id;
+        opt.textContent = (s.label || s.id) + idx;
+        mcpToolServerPick.appendChild(opt);
+      }
+      if (
+        !mcpSelectedServerId ||
+        !servers.some((x) => x.id === mcpSelectedServerId)
+      ) {
+        mcpSelectedServerId = servers[0].id;
+      }
+      mcpToolServerPick.value = mcpSelectedServerId;
+      void loadMcpToolCatalog(mcpSelectedServerId);
+    }
+
+    async function loadMcpServersUi() {
+      const r = await fetch("/mcp/servers");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpServerList.innerHTML =
+          '<div class="mcp-empty">Could not load servers: ' +
+          escapeHtml(formatDetail(d.detail) || r.statusText) +
+          "</div>";
+        return;
+      }
+      renderMcpServers(d.servers || []);
+    }
+
+    async function setMcpServerEnabled(serverId, enabled) {
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId),
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ enabled }),
+        }
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    async function deleteMcpServer(serverId) {
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId),
+        { method: "DELETE" }
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      if (mcpSelectedServerId === serverId) mcpSelectedServerId = null;
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    function renderMcpToolCatalog(tools, serverId) {
+      if (!serverId) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Select a server.</div>';
+        return;
+      }
+      if (!Array.isArray(tools) || tools.length === 0) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">No saved tools for this server. Click <strong>Discover tools</strong> to connect and refresh the catalog.</div>';
+        return;
+      }
+      mcpToolList.innerHTML = "";
+      for (const t of tools) {
+        const row = document.createElement("label");
+        row.className = "mcp-tool-row" + (t.enabled ? "" : " disabled");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!t.enabled;
+        cb.addEventListener("change", () => {
+          void setMcpToolEnabled(serverId, t.tool_name, cb.checked);
+        });
+        const body = document.createElement("div");
+        body.innerHTML =
+          '<div class="mcp-tool-names">' +
+          escapeHtml(t.tool_name) +
+          " → " +
+          escapeHtml(t.prefixed_name) +
+          "</div>" +
+          '<div class="mcp-tool-desc">' +
+          escapeHtml((t.description || "").slice(0, 400)) +
+          "</div>";
+        row.appendChild(cb);
+        row.appendChild(body);
+        mcpToolList.appendChild(row);
+      }
+    }
+
+    async function loadMcpToolCatalog(serverId) {
+      if (!serverId) return;
+      mcpSelectedServerId = serverId;
+      const r = await fetch(
+        "/mcp/servers/" + encodeURIComponent(serverId) + "/tools"
+      );
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        mcpToolList.innerHTML =
+          '<div class="mcp-empty">Could not load catalog: ' +
+          escapeHtml(formatDetail(d.detail) || r.statusText) +
+          "</div>";
+        return;
+      }
+      renderMcpToolCatalog(d.tools || [], serverId);
+    }
+
+    async function discoverMcpTools() {
+      const serverId = mcpToolServerPick.value.trim();
+      if (!serverId) return;
+      mcpDiscoverBtn.disabled = true;
+      mcpToolList.innerHTML =
+        '<div class="mcp-empty">Connecting to MCP and listing tools…</div>';
+      try {
+        const r = await fetch(
+          "/mcp/servers/" + encodeURIComponent(serverId) + "/discover",
+          { method: "POST" }
+        );
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          mcpToolList.innerHTML =
+            '<div class="mcp-empty">' +
+            escapeHtml(formatDetail(d.detail) || r.statusText) +
+            "</div>";
+          return;
+        }
+        const health = d.server_health || {};
+        let note = "Discovered " + (d.discovered || 0) + " tool(s).";
+        if (health.error) note += " Error: " + health.error;
+        else if (health.healthy === false) note += " Server unhealthy.";
+        appendMeta(note);
+        renderMcpToolCatalog(d.tools || [], serverId);
+        await refreshMcpToolsSummary();
+        await refreshStatusBadges();
+      } finally {
+        mcpDiscoverBtn.disabled = false;
+      }
+    }
+
+    async function setMcpToolEnabled(serverId, toolName, enabled) {
+      const r = await fetch("/mcp/tools", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          server_id: serverId,
+          tool_name: toolName,
+          enabled,
+        }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        await loadMcpToolCatalog(serverId);
+        return;
+      }
+      await loadMcpToolCatalog(serverId);
+      await refreshMcpToolsSummary();
+    }
+
+    async function openMcpModal() {
+      mcpModal.classList.add("open");
+      await loadMcpJsonIntoTextareas();
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+    }
+
+    function closeMcpModal() {
+      mcpModal.classList.remove("open");
+    }
+
+    async function saveMcpJsonFromModal() {
+      const raw = mcpModalConfigJson.value;
+      syncMcpJsonTextareas(raw);
+      const r = await fetch("/mcp/remotes-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: raw }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        appendBubble("error", formatDetail(d.detail) || r.statusText);
+        return;
+      }
+      appendMeta("MCP config saved to " + (d.path || "file") + ". Hub reloaded.");
+      await loadMcpServersUi();
+      await refreshMcpToolsSummary();
+      await refreshStatusBadges();
+    }
+
+    function renderSessionList(rows) {
+      sessionList.innerHTML = "";
+      const cur = sessionId || "";
+      if (!Array.isArray(rows) || rows.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "No sessions yet";
+        li.style.cursor = "default";
+        sessionList.appendChild(li);
+        return;
+      }
+      for (const row of rows) {
+        const li = document.createElement("li");
+        li.dataset.id = row.id;
+        if (row.id === cur) li.classList.add("active");
+        const n = row.message_count != null ? row.message_count : 0;
+        const preview = (row.title || "chat").slice(0, 48);
+        li.innerHTML =
+          '<span class="sess-msgs">' +
+          n +
+          " msgs</span><span class=\"sess-title\">" +
+          escapeHtml(preview) +
+          "</span>";
+        li.addEventListener("click", async () => {
+          if (busy || row.id === sessionId) return;
+          try {
+            busy = true;
+            await loadHistoryForSession(row.id);
+          } catch (e) {
+            appendBubble("error", String(e.message || e));
+          } finally {
+            busy = false;
+          }
+        });
+        sessionList.appendChild(li);
+      }
+    }
+
+    async function refreshSessionList() {
+      const r = await fetch("/sessions?limit=30");
+      const rows = await r.json().catch(() => []);
+      renderSessionList(Array.isArray(rows) ? rows : []);
+    }
+
+    async function newChat() {
+      localStorage.removeItem(LS_KEY);
+      sessionId = null;
+      logEl.innerHTML = "";
+      setTraceVisible(false);
+      orchEventsPill.textContent = "0 orchestration event(s)";
+      updateAgentTraceLink();
+      try {
+        await createSession();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+      }
+      await refreshStatusBadges();
+    }
+
+    async function sendMessage() {
+      const text = inputEl.value.trim();
+      if (!text || busy) return;
+      busy = true;
+      sendBtn.disabled = true;
+      messageOrdinal++;
+      appendBubble("user", text);
+      inputEl.value = "";
+
+      try {
+        await ensureSession();
+        if (!sessionId || typeof sessionId !== "string") {
+          appendBubble("error", "No session id — cannot persist to SQLite.");
+          return;
+        }
+        const body = {
+          message: text,
+          session_id: sessionId,
+          history_limit: appSettings.history_limit || 40,
+          use_mcp_tools: !!useMcpEl.checked,
+          use_agent_pipeline: !!useAgentEl.checked,
+        };
+        const m = modelSelect.value.trim() || (appSettings.model || "").trim();
+        if (m) body.model = m;
+
+        const r = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await r.json().catch(() => ({}));
+        lastDebugPayload = { status: r.status, body: data };
+        if (debugPanel.classList.contains("open")) {
+          debugPre.textContent = JSON.stringify(lastDebugPayload, null, 2);
+        }
+        if (!r.ok) {
+          appendBubble("error", formatDetail(data.detail) || r.statusText);
+          renderOrchestration(null);
+          return;
+        }
+        if ("session_id" in data) {
+          if (data.session_id != null && data.session_id !== sessionId) {
+            appendMeta("Warning: server echoed a different session_id than the client sent.");
+          }
+          if (data.session_id == null || data.session_id === "") {
+            appendMeta(
+              "Note: server did not receive session_id — this turn was not written to SQLite."
+            );
+          }
+        }
+        appendBubble("assistant", data.reply || "");
+        renderOrchestration(data.orchestration || null);
+        void refreshSessionList();
+        void refreshStatusBadges();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+        lastDebugPayload = { error: String(e) };
+        if (debugPanel.classList.contains("open")) {
+          debugPre.textContent = JSON.stringify(lastDebugPayload, null, 2);
+        }
+      } finally {
+        busy = false;
+        sendBtn.disabled = false;
+        inputEl.focus();
+      }
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+    newChatBtn.addEventListener("click", newChat);
+    btnPullHistory.addEventListener("click", () => {
+      void pullHistoryFromServer();
+    });
+    btnLoadMcp.addEventListener("click", () => {
+      void loadMcpConfig();
+    });
+    settingsModelPick.addEventListener("change", () => {
+      const v = settingsModelPick.value.trim();
+      if (v) settingsModel.value = v;
+    });
+    settingsProvider.addEventListener("change", () => {
+      settingsProviderWarn.classList.toggle(
+        "hidden",
+        settingsProvider.value === "ollama"
+      );
+      settingsOllamaHostWrap.style.display =
+        settingsProvider.value === "ollama" ? "" : "none";
+    });
+    settingsCloseBtn.addEventListener("click", closeSettingsModal);
+    settingsCloseBtn2.addEventListener("click", closeSettingsModal);
+    settingsIntentPlanning.addEventListener("change", () => {
+      settingsPlanExecution.disabled = !settingsIntentPlanning.checked;
+      if (!settingsIntentPlanning.checked) settingsPlanExecution.checked = false;
+    });
+    settingsSaveBtn.addEventListener("click", () => {
+      void saveSettingsFromModal();
+    });
+    settingsModal.addEventListener("click", (ev) => {
+      if (ev.target === settingsModal) closeSettingsModal();
+    });
+    btnRefreshMcpTools.addEventListener("click", () => {
+      void refreshMcpToolsSummary();
+    });
+    btnRefreshModels.addEventListener("click", () => {
+      void loadModelsFromServer();
+    });
+
+    btnLiveLogs.addEventListener("click", () => {
+      const open = liveLogsPanel.classList.contains("hidden");
+      setLiveLogsOpen(open);
+    });
+    liveLogsTabAgent.addEventListener("click", () => setLiveLogsTab("agent"));
+    liveLogsTabServer.addEventListener("click", () => setLiveLogsTab("server"));
+    liveLogsPin.addEventListener("click", () => {
+      setLiveLogsPinned(!liveLogsPinned());
+    });
+    liveLogsClose.addEventListener("click", () => {
+      if (liveLogsPinned()) return;
+      setLiveLogsOpen(false);
+    });
+
+    function setArchTab(tab) {
+      for (const el of archTabContents) {
+        el.classList.toggle("active", el.dataset.tab === tab);
+      }
+      for (const b of archTabButtons) {
+        b.classList.toggle("active", b.dataset.tab === tab);
+      }
+    }
+
+    btnSystemArch.addEventListener("click", () => {
+      if (!archModal) return;
+      archModal.classList.add("open");
+    });
+
+    archCloseBtn.addEventListener("click", () => {
+      if (!archModal) return;
+      archModal.classList.remove("open");
+    });
+
+    archModal.addEventListener("click", (ev) => {
+      if (ev.target === archModal) archModal.classList.remove("open");
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      if (archModal && archModal.classList.contains("open")) {
+        archModal.classList.remove("open");
+      }
+      if (mcpModal && mcpModal.classList.contains("open")) {
+        closeMcpModal();
+      }
+      if (settingsModal && settingsModal.classList.contains("open")) {
+        closeSettingsModal();
+      }
+    });
+
+    for (const b of archTabButtons) {
+      b.addEventListener("click", () => setArchTab(b.dataset.tab));
+    }
+
+    liveLogsCopy.addEventListener("click", async () => {
+      let text = "";
+      if (liveLogsTab === "agent") {
+        text = lastAgentTraceBundle
+          ? JSON.stringify(lastAgentTraceBundle, null, 2)
+          : liveLogsBodyAgent.innerText;
+      } else {
+        text = (lastServerLogLines || []).join("\n");
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        appendMeta("Live logs: copied to clipboard.");
+      } catch (_) {
+        appendMeta("Live logs: copy failed (browser may block clipboard).");
+      }
+    });
+    liveLogsDownload.addEventListener("click", () => {
+      const agent = liveLogsTab === "agent";
+      const body = agent
+        ? JSON.stringify(lastAgentTraceBundle || {}, null, 2)
+        : (lastServerLogLines || []).join("\n");
+      const blob = new Blob([body], {
+        type: agent ? "application/json" : "text/plain;charset=utf-8",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = agent ? "allan-agent-trace.json" : "allan-server.log";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    document.getElementById("openSettings").addEventListener("click", () => {
+      openSettingsModal(false);
+    });
+    document.getElementById("openMcpSettings").addEventListener("click", () => {
+      void openMcpModal();
+    });
+    mcpCloseBtn.addEventListener("click", closeMcpModal);
+    mcpCloseBtn2.addEventListener("click", closeMcpModal);
+    mcpModal.addEventListener("click", (ev) => {
+      if (ev.target === mcpModal) closeMcpModal();
+    });
+    mcpToolServerPick.addEventListener("change", () => {
+      void loadMcpToolCatalog(mcpToolServerPick.value.trim());
+    });
+    mcpDiscoverBtn.addEventListener("click", () => {
+      void discoverMcpTools();
+    });
+    mcpModalLoadJson.addEventListener("click", () => {
+      void loadMcpJsonIntoTextareas();
+    });
+    mcpModalSaveJson.addEventListener("click", () => {
+      void saveMcpJsonFromModal();
+    });
+    document.getElementById("scrollToModels").addEventListener("click", () => {
+      document.getElementById("modelControls").scrollIntoView({ behavior: "smooth", block: "nearest" });
+      modelSelect.focus();
+    });
+
+    document.getElementById("btnExplain").addEventListener("click", () => {
+      appendMeta(
+        "Orchestration strip: after each send with “Intent plan”, the server returns intent trace, keywords, tool fit, and pipeline stages (preparse → intent → review → tools → response)."
+      );
+    });
+    document.getElementById("btnClarifyHint").addEventListener("click", () => {
+      appendMeta(
+        "When scores are below threshold or the model marks needs_clarification, open questions and the yellow call-out list what to answer next."
+      );
+    });
+
+    btnDebug.addEventListener("click", () => {
+      debugPanel.classList.toggle("open");
+      debugPre.textContent = lastDebugPayload
+        ? JSON.stringify(lastDebugPayload, null, 2)
+        : "(no POST /chat response captured yet)";
+    });
+
+    btnCommands.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      commandsPopover.classList.toggle("open");
+    });
+    document.addEventListener("click", () => {
+      commandsPopover.classList.remove("open");
+    });
+
+    useMcpEl.addEventListener("change", () => {
+      localStorage.setItem(LS_MCP, useMcpEl.checked ? "1" : "0");
+      void refreshStatusBadges();
+      updateHeaderSubline();
+    });
+    useAgentEl.addEventListener("change", () => {
+      localStorage.setItem(LS_AGENT, useAgentEl.checked ? "1" : "0");
+      appSettings.intent_planning = useAgentEl.checked;
+      appSettings.use_agent_pipeline = useAgentEl.checked;
+      if (useAgentEl.checked && appSettings.plan_execution === undefined) {
+        appSettings.plan_execution = true;
+      }
+      void refreshStatusBadges();
+      updateHeaderSubline();
+    });
+    modelSelect.addEventListener("change", () => {
+      const v = modelSelect.value.trim();
+      if (v) localStorage.setItem(LS_MODEL, v);
+      else localStorage.removeItem(LS_MODEL);
+      void refreshStatusBadges();
+    });
+
+    inputEl.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        sendMessage();
+      }
+    });
+
+    async function init() {
+      setLiveLogsPinned(liveLogsPinned());
+      if (localStorage.getItem(LS_MCP) === "1") useMcpEl.checked = true;
+      if (localStorage.getItem(LS_AGENT) === "1") useAgentEl.checked = true;
+      const savedModel = localStorage.getItem(LS_MODEL);
+      if (savedModel) {
+        const o = document.createElement("option");
+        o.value = savedModel;
+        o.textContent = savedModel;
+        modelSelect.appendChild(o);
+        modelSelect.value = savedModel;
+      }
+
+      const params = new URLSearchParams(location.search);
+      const q = params.get("session");
+      try {
+        await loadModelsFromServer();
+        await loadSettingsFromServer();
+        if (q) {
+          await loadHistoryForSession(q);
+          appendMeta("Opened from ?session= in URL.");
+        } else if (!(await tryRestoreSession())) {
+          await newChat();
+        }
+        await refreshSessionList();
+        await loadMcpConfig();
+        await refreshMcpToolsSummary();
+        updateHeaderSubline();
+        updateAgentTraceLink();
+        await refreshStatusBadges();
+      } catch (e) {
+        appendBubble("error", String(e.message || e));
+        await newChat();
+      } finally {
+        if (localStorage.getItem(LS_LIVE_LOGS_OPEN) === "1") {
+          setLiveLogsOpen(true);
+        }
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

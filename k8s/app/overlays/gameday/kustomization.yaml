@@ -12,17 +12,17 @@ patches:
     path: remove-payment-readiness.yaml
 images:
   - name: chaos-api-gateway
-    newName: example.com/replace-me/chaos-api-gateway
-    newTag: gameday
+    newName: 470725743213.dkr.ecr.us-east-1.amazonaws.com/chaos-api-gateway
+    newTag: latest
   - name: chaos-order-service
-    newName: example.com/replace-me/chaos-order-service
-    newTag: gameday
+    newName: 470725743213.dkr.ecr.us-east-1.amazonaws.com/chaos-order-service
+    newTag: latest
   - name: chaos-inventory-service
-    newName: example.com/replace-me/chaos-inventory-service
-    newTag: gameday
+    newName: 470725743213.dkr.ecr.us-east-1.amazonaws.com/chaos-inventory-service
+    newTag: latest
   - name: chaos-payment-service
-    newName: example.com/replace-me/chaos-payment-service
-    newTag: gameday
+    newName: 470725743213.dkr.ecr.us-east-1.amazonaws.com/chaos-payment-service
+    newTag: latest
   - name: chaos-frontend
-    newName: example.com/replace-me/chaos-frontend
-    newTag: gameday
+    newName: 470725743213.dkr.ecr.us-east-1.amazonaws.com/chaos-frontend
+    newTag: latest
